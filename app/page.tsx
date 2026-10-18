@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { seDeconnecter } from "./connexion/actions";
@@ -36,7 +37,7 @@ async function ContenuAccueil() {
         <>
           <p className="sous-titre">Bonjour {profil.nom_complet}</p>
           <p>Rôle : {LIBELLES_ROLE[profil.role] ?? profil.role}</p>
-          <p className="note">La saisie des ventes arrive à l&apos;étape suivante.</p>
+          <Link href="/ventes/nouvelle" className="bouton">Nouvelle vente</Link>
         </>
       ) : (
         <p className="erreur">
