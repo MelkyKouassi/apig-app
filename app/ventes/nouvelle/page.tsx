@@ -22,10 +22,11 @@ async function ContenuNouvelleVente() {
     redirect("/");
   }
 
-  const [{ data: evenements }, { data: produits }, { data: commerciaux }] = await Promise.all([
+  const [{ data: evenements }, { data: produits }, { data: commerciaux }, { data: clients }] = await Promise.all([
     supabase.from("evenements").select("id, nom").order("nom"),
     supabase.from("produits").select("id, nom").eq("actif", true).order("nom"),
     supabase.from("commerciaux").select("id, nom").eq("actif", true).order("nom"),
+    supabase.from("tiers").select("id, nom").order("nom"),
   ]);
 
   return (
@@ -36,6 +37,7 @@ async function ContenuNouvelleVente() {
         evenements={evenements ?? []}
         produits={produits ?? []}
         commerciaux={commerciaux ?? []}
+        clients={clients ?? []}
         estGerant={profil.role === "gerant"}
       />
     </main>

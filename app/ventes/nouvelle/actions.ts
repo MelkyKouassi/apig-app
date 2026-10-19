@@ -14,10 +14,16 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
   const evenementId = String(formData.get("evenement_id") ?? "");
   const dateVente = String(formData.get("date_vente") ?? "");
   const commercialId = String(formData.get("commercial_id") ?? "") || null;
+  const modePaiement = String(formData.get("mode_paiement") ?? "comptant");
+  const tiersChoisi = String(formData.get("tiers_id") ?? "") || null;
+  const nouveauClient = String(formData.get("nouveau_client") ?? "").trim();
   const lignesBrutes = String(formData.get("lignes") ?? "[]");
 
   if (!evenementId) return { ok: false, erreur: "Choisissez l'événement." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateVente)) return { ok: false, erreur: "Date invalide." };
+  if (modePaiement !== "comptant" && modePaiement !== "credit") {
+    return { ok: false, erreur: "Mode de paiement invalide." };
+  }
 
   let lignes: LigneSaisie[];
   try {
@@ -33,6 +39,26 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, erreur: "Votre session a expiré. Reconnectez-vous." };
 
+  // Pour une vente à crédit : client existant, ou nouveau client créé à la volée.
+  let tiersId: string | null = null;
+  if (modePaiement === "credit") {
+    if (tiersChoisi) {
+      tiersId = tiersChoisi;
+    } else if (nouveauClient) {
+      const { data: nouveau, error: erreurClient } = await supabase
+        .from("tiers")
+        .insert({ nom: nouveauClient, type: "client", created_by: user.id })
+        .select("id")
+        .single();
+      if (erreurClient || !nouveau) {
+        return { ok: false, erreur: "Le nouveau client n'a pas pu être créé. Vérifiez le nom." };
+      }
+      tiersId = nouveau.id;
+    } else {
+      return { ok: false, erreur: "Pour une vente à crédit, choisissez le client ou saisissez son nom." };
+    }
+  }
+
   const panierId = randomUUID();
   const lignesAInserer = lignesValides.map((l) => ({
     panier_id: panierId,
@@ -41,13 +67,14 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
     produit_id: l.produit_id,
     quantite: Number(l.quantite),
     commercial_id: commercialId,
-    mode_paiement: "comptant",
+    mode_paiement: modePaiement,
+    tiers_id: tiersId,
     created_by: user.id,
   }));
 
   const { data, error } = await supabase.from("ventes").insert(lignesAInserer).select("montant");
   if (error) {
-    return { ok: false, erreur: "La vente n'a pas pu être enregistrée. Vérifiez l'événement et réessayez." };
+    return { ok: false, erreur: "La vente n'a pas pu être enregistrée. Vérifiez les champs et réessayez." };
   }
 
   const total = (data ?? []).reduce((somme: number, l: { montant: number | null }) => somme + Number(l.montant ?? 0), 0);

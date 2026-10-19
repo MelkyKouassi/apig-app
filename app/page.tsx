@@ -41,6 +41,9 @@ async function ContenuAccueil() {
           {profil.role === "gerant" && (
             <Link href="/ventes" className="secondaire lien">Ventes du jour</Link>
           )}
+          {(profil.role === "gerant" || profil.role === "comptable") && (
+            <Link href="/creances" className="secondaire lien">Créances</Link>
+          )}
         </>
       ) : (
         <p className="erreur">

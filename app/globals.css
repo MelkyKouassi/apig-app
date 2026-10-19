@@ -95,3 +95,12 @@ select {
 .filtre-date { display: flex; gap: 8px; }
 .filtre-date input { flex: 1; padding: 10px; border: 1px solid var(--bordure); border-radius: 8px; background: var(--fond); color: var(--texte); font: inherit; }
 a.lien { display: block; text-align: center; text-decoration: none; padding: 14px; border-radius: 8px; border: 1px solid var(--bordure); color: var(--accent); }
+
+.client-credit { border: 1px solid var(--bordure); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.client-credit legend { font-weight: 600; padding: 0 6px; }
+
+.badge.ok { background: var(--accent); }
+.badge.attention { background: #b26a00; }
+.badge.ferme { background: #c2410c; }
+.badge.urgent { background: var(--erreur); }
+.lien-tel { color: var(--accent); }

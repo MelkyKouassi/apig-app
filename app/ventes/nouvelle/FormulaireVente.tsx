@@ -14,16 +14,19 @@ export function FormulaireVente({
   evenements,
   produits,
   commerciaux,
+  clients,
   estGerant,
 }: {
   evenements: Option[];
   produits: Option[];
   commerciaux: Option[];
+  clients: Option[];
   estGerant: boolean;
 }) {
   const [etat, action, enCours] = useActionState<ResultatVente, FormData>(enregistrerVente, null);
   const [evenementId, setEvenementId] = useState("");
   const [dateVente, setDateVente] = useState(aujourdhui());
+  const [modePaiement, setModePaiement] = useState<"comptant" | "credit">("comptant");
   const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1", prix: null }]);
   const [prochaineCle, setProchaineCle] = useState(2);
 
@@ -45,9 +48,7 @@ export function FormulaireVente({
         })
       );
       if (!annule) {
-        setLignes((actuelles) =>
-          actuelles.map((l, i) => ({ ...l, prix: prix[i] ?? null }))
-        );
+        setLignes((actuelles) => actuelles.map((l, i) => ({ ...l, prix: prix[i] ?? null })));
       }
     })();
     return () => {
@@ -99,6 +100,37 @@ export function FormulaireVente({
         Date de la vente
         <input name="date_vente" type="date" value={dateVente} onChange={(e) => setDateVente(e.target.value)} required />
       </label>
+
+      <label>
+        Mode de paiement
+        <select
+          name="mode_paiement"
+          value={modePaiement}
+          onChange={(e) => setModePaiement(e.target.value as "comptant" | "credit")}
+        >
+          <option value="comptant">Comptant</option>
+          <option value="credit">Crédit</option>
+        </select>
+      </label>
+
+      {modePaiement === "credit" && (
+        <fieldset className="client-credit">
+          <legend>Client à crédit</legend>
+          <label>
+            Client existant
+            <select name="tiers_id" defaultValue="">
+              <option value="">-- Choisir un client --</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.nom}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Ou nouveau client (nom)
+            <input name="nouveau_client" placeholder="Nom complet" />
+          </label>
+        </fieldset>
+      )}
 
       {estGerant && (
         <label>
