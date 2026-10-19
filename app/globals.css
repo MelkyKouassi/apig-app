@@ -104,3 +104,9 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 .badge.ferme { background: #c2410c; }
 .badge.urgent { background: var(--erreur); }
 .lien-tel { color: var(--accent); }
+
+.statut { margin: 0; font-size: 0.9rem; font-weight: 600; }
+.statut.en-ligne { color: var(--accent); }
+.statut.hors-ligne { color: #b26a00; }
+.attente { border-top: 1px solid var(--bordure); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.attente ul { margin: 0; padding-left: 18px; }

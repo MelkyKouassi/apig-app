@@ -1,0 +1,376 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import {
+  getAttente,
+  getProfil,
+  getReferentiel,
+  prixLocal,
+  setAttente,
+  setProfil,
+  setReferentiel,
+  type Profil,
+  type Referentiel,
+  type VenteEnAttente,
+} from "@/lib/hors-ligne";
+
+type Ligne = { cle: number; produit_id: string; quantite: string };
+
+const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
+const aujourdhui = () => new Date().toISOString().slice(0, 10);
+const nouvelId = () => crypto.randomUUID();
+
+export function SaisieHorsLigne() {
+  const [ref, setRef] = useState<Referentiel | null>(null);
+  const [profil, setProfilState] = useState<Profil | null>(null);
+  const [attente, setAttenteState] = useState<VenteEnAttente[]>([]);
+  const [enLigne, setEnLigne] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+
+  // Formulaire
+  const [evenementId, setEvenementId] = useState("");
+  const [dateVente, setDateVente] = useState("");
+  const [mode, setMode] = useState<"comptant" | "credit">("comptant");
+  const [tiersId, setTiersId] = useState("");
+  const [nouveauClient, setNouveauClient] = useState("");
+  const [commercialId, setCommercialId] = useState("");
+  const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1" }]);
+  const [prochaineCle, setProchaineCle] = useState(2);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
+
+  // Chargement initial : données locales d'abord, puis mise à jour si on est en ligne.
+  useEffect(() => {
+    setDateVente(aujourdhui());
+    let annule = false;
+    (async () => {
+      const [r, p, a] = await Promise.all([getReferentiel(), getProfil(), getAttente()]);
+      if (annule) return;
+      setRef(r);
+      setProfilState(p);
+      setAttenteState(a);
+      setEnLigne(navigator.onLine);
+      if (navigator.onLine) {
+        await rafraichir();
+      }
+    })();
+
+    const surEnLigne = () => {
+      setEnLigne(true);
+      rafraichir().then(() => synchroniser());
+    };
+    const surHorsLigne = () => setEnLigne(false);
+    window.addEventListener("online", surEnLigne);
+    window.addEventListener("offline", surHorsLigne);
+    return () => {
+      annule = true;
+      window.removeEventListener("online", surEnLigne);
+      window.removeEventListener("offline", surHorsLigne);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function rafraichir() {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setMessage("Connectez-vous une fois en ligne pour activer la saisie hors ligne.");
+      return;
+    }
+    const uid = session.user.id;
+
+    const { data: pr } = await supabase.from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (pr?.role !== "gerant" && pr?.role !== "commercial") {
+      setMessage("Votre rôle ne permet pas la saisie des ventes.");
+      return;
+    }
+
+    let ficheId: string | null = null;
+    if (pr.role === "commercial") {
+      const { data: fiche } = await supabase
+        .from("commerciaux").select("id").eq("user_id", uid).eq("actif", true).maybeSingle();
+      ficheId = fiche?.id ?? null;
+    }
+    const nouveauProfil: Profil = { user_id: uid, role: pr.role, fiche_id: ficheId };
+    await setProfil(nouveauProfil);
+    setProfilState(nouveauProfil);
+
+    const [ev, pro, px, pxe, com, tie] = await Promise.all([
+      supabase.from("evenements").select("id, nom, est_point_de_vente").order("nom"),
+      supabase.from("produits").select("id, nom, prix_base").eq("actif", true).order("nom"),
+      supabase.from("prix").select("produit_id, prix_unitaire, date_effet"),
+      supabase.from("prix_evenement").select("produit_id, evenement_id, prix_unitaire, date_effet"),
+      supabase.from("commerciaux").select("id, nom").eq("actif", true).order("nom"),
+      supabase.from("tiers").select("id, nom").order("nom"),
+    ]);
+
+    const nouveau: Referentiel = {
+      evenements: (ev.data ?? []) as Referentiel["evenements"],
+      produits: (pro.data ?? []) as Referentiel["produits"],
+      prix: (px.data ?? []) as Referentiel["prix"],
+      prix_evenement: (pxe.data ?? []) as Referentiel["prix_evenement"],
+      commerciaux: (com.data ?? []) as Referentiel["commerciaux"],
+      tiers: (tie.data ?? []) as Referentiel["tiers"],
+      maj: new Date().toISOString(),
+    };
+    await setReferentiel(nouveau);
+    setRef(nouveau);
+    setMessage(null);
+  }
+
+  async function synchroniser() {
+    if (!navigator.onLine) return;
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setMessage("Reconnectez-vous pour envoyer les ventes en attente. Elles restent sur ce téléphone.");
+      return;
+    }
+    setEnvoi(true);
+    const liste = await getAttente();
+    const restantes: VenteEnAttente[] = [];
+    let interrompu = false;
+
+    for (const vente of liste) {
+      if (interrompu) {
+        restantes.push(vente);
+        continue;
+      }
+      try {
+        let tiers = vente.tiers_id;
+        // Nouveau client saisi hors ligne : créé une seule fois, puis son identifiant est gardé.
+        if (vente.mode_paiement === "credit" && !tiers && vente.nouveau_client) {
+          const { data, error } = await supabase
+            .from("tiers")
+            .insert({ nom: vente.nouveau_client, type: "client", created_by: session.user.id })
+            .select("id")
+            .single();
+          if (error || !data) throw new Error("client");
+          tiers = data.id;
+          vente.tiers_id = tiers;
+        }
+        const lignesBase = vente.lignes.map((l) => ({
+          id: l.id,
+          panier_id: vente.id,
+          date_vente: vente.date_vente,
+          evenement_id: vente.evenement_id,
+          produit_id: l.produit_id,
+          quantite: l.quantite,
+          commercial_id: vente.commercial_id,
+          mode_paiement: vente.mode_paiement,
+          tiers_id: tiers,
+          created_by: session.user.id,
+        }));
+        // upsert + ignoreDuplicates : renvoyer deux fois la même vente ne crée pas de doublon.
+        const { error } = await supabase
+          .from("ventes")
+          .upsert(lignesBase, { onConflict: "id", ignoreDuplicates: true });
+        if (error) throw error;
+      } catch {
+        interrompu = true;
+        restantes.push(vente);
+        setMessage("L'envoi a été interrompu. Les ventes restent sur ce téléphone et seront renvoyées automatiquement.");
+      }
+      if (!interrompu) {
+        // Vente envoyée : on ne la garde plus, sauf le client nouvellement créé déjà enregistré.
+        continue;
+      }
+    }
+
+    await setAttente(restantes);
+    setAttenteState(restantes);
+    setEnvoi(false);
+    if (!interrompu) setMessage(null);
+  }
+
+  function ajouterLigne() {
+    setLignes((l) => [...l, { cle: prochaineCle, produit_id: "", quantite: "1" }]);
+    setProchaineCle((k) => k + 1);
+  }
+
+  function modifierLigne(cle: number, champs: Partial<Ligne>) {
+    setLignes((l) => l.map((x) => (x.cle === cle ? { ...x, ...champs } : x)));
+  }
+
+  function retirerLigne(cle: number) {
+    setLignes((l) => (l.length > 1 ? l.filter((x) => x.cle !== cle) : l));
+  }
+
+  const prixLigne = (produitId: string, quantite: string) => {
+    if (!ref || !produitId || !evenementId) return null;
+    return prixLocal(ref, produitId, evenementId, dateVente) * Number(quantite || 0);
+  };
+  const total = lignes.reduce((s, l) => s + (prixLigne(l.produit_id, l.quantite) ?? 0), 0);
+
+  async function enregistrer(e: React.FormEvent) {
+    e.preventDefault();
+    setConfirmation(null);
+    setMessage(null);
+
+    if (!profil) return setMessage("Votre session n'est pas connue sur ce téléphone. Connectez-vous une fois en ligne.");
+    if (!evenementId) return setMessage("Choisissez l'événement.");
+    const lignesValides = lignes.filter((l) => l.produit_id && Number(l.quantite) > 0);
+    if (lignesValides.length === 0) return setMessage("Ajoutez au moins un produit avec une quantité.");
+    if (mode === "credit" && !tiersId && !nouveauClient.trim()) {
+      return setMessage("Pour une vente à crédit, choisissez le client ou saisissez son nom.");
+    }
+
+    const commercial = profil.role === "commercial" ? profil.fiche_id : commercialId || null;
+    if (profil.role === "commercial" && !commercial) {
+      return setMessage("Votre compte n'est pas relié à une fiche commercial. Contactez le gérant.");
+    }
+
+    const vente: VenteEnAttente = {
+      id: nouvelId(),
+      cree_le: new Date().toISOString(),
+      date_vente: dateVente,
+      evenement_id: evenementId,
+      mode_paiement: mode,
+      tiers_id: mode === "credit" && tiersId ? tiersId : null,
+      nouveau_client: mode === "credit" && !tiersId ? nouveauClient.trim() : null,
+      commercial_id: commercial,
+      lignes: lignesValides.map((l) => ({ id: nouvelId(), produit_id: l.produit_id, quantite: Number(l.quantite) })),
+    };
+
+    const nouvelleListe = [...attente, vente];
+    await setAttente(nouvelleListe);
+    setAttenteState(nouvelleListe);
+
+    // Remise à zéro du formulaire
+    setLignes([{ cle: prochaineCle, produit_id: "", quantite: "1" }]);
+    setProchaineCle((k) => k + 1);
+    setTiersId("");
+    setNouveauClient("");
+    setConfirmation(enLigne ? "Vente enregistrée, envoi en cours." : "Vente enregistrée sur ce téléphone. Elle sera envoyée dès que la connexion reviendra.");
+
+    if (navigator.onLine) await synchroniser();
+  }
+
+  const estGerant = profil?.role === "gerant";
+
+  return (
+    <main className="page-centree">
+      <Link href="/" className="retour">← Accueil</Link>
+      <h1>Saisie des ventes</h1>
+      <p className={enLigne ? "statut en-ligne" : "statut hors-ligne"}>
+        {enLigne ? "Connecté" : "Hors connexion"}
+        {attente.length > 0 && ` · ${attente.length} vente(s) à envoyer`}
+      </p>
+
+      {message && <p className="erreur">{message}</p>}
+      {confirmation && <p className="succes">{confirmation}</p>}
+
+      {!ref ? (
+        <p className="note">
+          {profil ? "Chargement des données..." : "Connectez-vous une fois en ligne pour activer la saisie hors ligne."}
+        </p>
+      ) : (
+        <form onSubmit={enregistrer} className="formulaire">
+          <label>
+            Événement
+            <select value={evenementId} onChange={(e) => setEvenementId(e.target.value)} required>
+              <option value="">-- Choisir --</option>
+              {ref.evenements.map((ev) => (
+                <option key={ev.id} value={ev.id}>{ev.nom}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Date de la vente
+            <input type="date" value={dateVente} onChange={(e) => setDateVente(e.target.value)} required />
+          </label>
+
+          <label>
+            Mode de paiement
+            <select value={mode} onChange={(e) => setMode(e.target.value as "comptant" | "credit")}>
+              <option value="comptant">Comptant</option>
+              <option value="credit">Crédit</option>
+            </select>
+          </label>
+
+          {mode === "credit" && (
+            <fieldset className="client-credit">
+              <legend>Client à crédit</legend>
+              <label>
+                Client existant
+                <select value={tiersId} onChange={(e) => setTiersId(e.target.value)}>
+                  <option value="">-- Choisir un client --</option>
+                  {ref.tiers.map((t) => (
+                    <option key={t.id} value={t.id}>{t.nom}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Ou nouveau client (nom)
+                <input value={nouveauClient} onChange={(e) => setNouveauClient(e.target.value)} placeholder="Nom complet" />
+              </label>
+            </fieldset>
+          )}
+
+          {estGerant && (
+            <label>
+              Commercial
+              <select value={commercialId} onChange={(e) => setCommercialId(e.target.value)}>
+                <option value="">-- Aucun --</option>
+                {ref.commerciaux.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nom}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <div className="lignes">
+            <p className="sous-titre">Produits</p>
+            {lignes.map((l) => (
+              <div key={l.cle} className="ligne-vente">
+                <select value={l.produit_id} onChange={(e) => modifierLigne(l.cle, { produit_id: e.target.value })}>
+                  <option value="">-- Produit --</option>
+                  {ref.produits.map((p) => (
+                    <option key={p.id} value={p.id}>{p.nom}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="1"
+                  inputMode="numeric"
+                  value={l.quantite}
+                  onChange={(e) => modifierLigne(l.cle, { quantite: e.target.value })}
+                  aria-label="Quantité"
+                />
+                <span className="prix-ligne">
+                  {prixLigne(l.produit_id, l.quantite) === null ? "" : francs(prixLigne(l.produit_id, l.quantite) ?? 0)}
+                </span>
+                <button type="button" className="secondaire petit" onClick={() => retirerLigne(l.cle)}>Retirer</button>
+              </div>
+            ))}
+            <button type="button" className="secondaire" onClick={ajouterLigne}>+ Ajouter un produit</button>
+          </div>
+
+          <p className="total">Total : {francs(total)}</p>
+          <p className="note">Le prix affiché vient des données copiées sur ce téléphone. La base recalcule le montant à l&apos;envoi.</p>
+
+          <button type="submit">Enregistrer la vente</button>
+        </form>
+      )}
+
+      {attente.length > 0 && (
+        <section className="attente">
+          <p className="sous-titre">Ventes non encore envoyées</p>
+          <ul>
+            {attente.map((v) => (
+              <li key={v.id}>
+                {new Date(v.cree_le).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan" })} · {v.lignes.length} produit(s) · {v.mode_paiement === "credit" ? "crédit" : "comptant"}
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="secondaire" onClick={synchroniser} disabled={envoi || !enLigne}>
+            {envoi ? "Envoi en cours..." : "Envoyer maintenant"}
+          </button>
+        </section>
+      )}
+    </main>
+  );
+}
