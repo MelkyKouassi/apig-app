@@ -18,7 +18,9 @@ export async function annulerPanier(_etat: EtatAnnulation, formData: FormData): 
   if (!user) return { ok: false, erreur: "Votre session a expiré. Reconnectez-vous." };
 
   const { data: profil } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (profil?.role !== "gerant") return { ok: false, erreur: "Seul le gérant peut annuler une vente." };
+  if (profil?.role !== "gerant" && profil?.role !== "commercial") {
+    return { ok: false, erreur: "Vous n'êtes pas autorisé à annuler une vente." };
+  }
 
   const { data, error } = await supabase
     .from("ventes")
@@ -28,7 +30,9 @@ export async function annulerPanier(_etat: EtatAnnulation, formData: FormData): 
     .select("id");
 
   if (error) return { ok: false, erreur: "L'annulation n'a pas pu être enregistrée." };
-  if (!data || data.length === 0) return { ok: false, erreur: "Cette vente est déjà annulée." };
+  if (!data || data.length === 0) {
+    return { ok: false, erreur: "Cette vente est déjà annulée ou ne peut plus être corrigée." };
+  }
 
   revalidatePath("/ventes");
   return { ok: true };
