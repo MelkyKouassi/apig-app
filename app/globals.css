@@ -84,3 +84,14 @@ select {
 .succes { color: var(--accent); font-weight: 600; }
 .retour { color: var(--accent); text-decoration: none; }
 .bouton { display: inline-block; text-align: center; padding: 14px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+
+.carte-vente { border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.carte-vente ul { margin: 0; padding-left: 18px; }
+.carte-vente.annulee { opacity: 0.6; }
+.entete { margin: 0; }
+.badge { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--erreur); color: #fff; font-size: 0.8rem; }
+.annulation { display: flex; flex-direction: column; gap: 8px; }
+.annulation input { width: 100%; box-sizing: border-box; }
+.filtre-date { display: flex; gap: 8px; }
+.filtre-date input { flex: 1; padding: 10px; border: 1px solid var(--bordure); border-radius: 8px; background: var(--fond); color: var(--texte); font: inherit; }
+a.lien { display: block; text-align: center; text-decoration: none; padding: 14px; border-radius: 8px; border: 1px solid var(--bordure); color: var(--accent); }

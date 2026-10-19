@@ -38,6 +38,9 @@ async function ContenuAccueil() {
           <p className="sous-titre">Bonjour {profil.nom_complet}</p>
           <p>Rôle : {LIBELLES_ROLE[profil.role] ?? profil.role}</p>
           <Link href="/ventes/nouvelle" className="bouton">Nouvelle vente</Link>
+          {profil.role === "gerant" && (
+            <Link href="/ventes" className="secondaire lien">Ventes du jour</Link>
+          )}
         </>
       ) : (
         <p className="erreur">
