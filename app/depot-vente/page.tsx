@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireReglementDepot } from "./FormulaireReglementDepot";
+import { FormulaireQuantiteVendue, FormulaireRestitution } from "./FormulairesLigneDepot";
 
 type LigneDepot = {
   id: string;
@@ -107,9 +108,17 @@ async function ContenuDepotVente() {
           <details>
             <summary>Détail par produit ({g.lignes.length} ligne(s))</summary>
             {g.lignes.map((l) => (
-              <p key={l.id} className="note">
-                {l.produit_nom} (remis le {l.date_remise}) : confiées {l.quantite_confiee}, données {l.quantite_donnee}, vendues {l.quantite_vendue}, restituées {l.quantite_restituee} · dû {francs(Number(l.montant_du ?? 0))}
-              </p>
+              <div key={l.id} className="carte-vente">
+                <p className="note">
+                  {l.produit_nom} (remis le {l.date_remise}) : confiées {l.quantite_confiee}, données {l.quantite_donnee}, vendues {l.quantite_vendue}, restituées {l.quantite_restituee} · dû {francs(Number(l.montant_du ?? 0))}
+                </p>
+                {estGerant && (
+                  <>
+                    <FormulaireQuantiteVendue depotId={l.id} vendue={Number(l.quantite_vendue)} />
+                    <FormulaireRestitution depotId={l.id} restant={Number(l.quantite_a_payer)} />
+                  </>
+                )}
+              </div>
             ))}
           </details>
 
