@@ -39,6 +39,20 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, erreur: "Votre session a expiré. Reconnectez-vous." };
 
+  // Un commercial enregistre toujours sous sa propre fiche.
+  const { data: profil } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  let commercialFinal = commercialId;
+  if (profil?.role === "commercial") {
+    const { data: fiche } = await supabase
+      .from("commerciaux")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("actif", true)
+      .maybeSingle();
+    if (!fiche) return { ok: false, erreur: "Votre compte n'est pas encore relié à une fiche commercial. Contactez le gérant." };
+    commercialFinal = fiche.id;
+  }
+
   // Pour une vente à crédit : client existant, ou nouveau client créé à la volée.
   let tiersId: string | null = null;
   if (modePaiement === "credit") {
@@ -66,7 +80,7 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
     evenement_id: evenementId,
     produit_id: l.produit_id,
     quantite: Number(l.quantite),
-    commercial_id: commercialId,
+    commercial_id: commercialFinal,
     mode_paiement: modePaiement,
     tiers_id: tiersId,
     created_by: user.id,
