@@ -3,10 +3,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BoutonAnnuler } from "./BoutonAnnuler";
+import { FormulaireModifierLigne } from "./FormulaireModifierLigne";
 
 type LigneVente = {
   id: string;
   panier_id: string;
+  produit_id: string;
   quantite: number;
   montant: number | null;
   statut: string;
@@ -38,9 +40,12 @@ async function ContenuVentes({ searchParams }: { searchParams: Promise<{ date?: 
   const { data: profil } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (profil?.role !== "gerant") redirect("/");
 
+  const { data: produitsData } = await supabase.from("produits").select("id, nom").eq("actif", true).order("nom");
+  const produits = produitsData ?? [];
+
   const { data } = await supabase
     .from("ventes")
-    .select("id, panier_id, quantite, montant, statut, motif_annulation, created_at, produits(nom), evenements(nom)")
+    .select("id, panier_id, produit_id, quantite, montant, statut, motif_annulation, created_at, produits(nom), evenements(nom)")
     .eq("date_vente", date)
     .order("created_at", { ascending: true });
 
@@ -87,13 +92,27 @@ async function ContenuVentes({ searchParams }: { searchParams: Promise<{ date?: 
               <strong>{ligneDuPanier[0].evenements?.nom ?? "Événement"}</strong> · {heure}
               {annule && <span className="badge">Annulée</span>}
             </p>
-            <ul>
-              {ligneDuPanier.map((l) => (
-                <li key={l.id}>
-                  {l.produits?.nom ?? "Produit"} × {l.quantite} : {francs(Number(l.montant ?? 0))}
-                </li>
-              ))}
-            </ul>
+            {annule ? (
+              <ul>
+                {ligneDuPanier.map((l) => (
+                  <li key={l.id}>
+                    {l.produits?.nom ?? "Produit"} × {l.quantite} : {francs(Number(l.montant ?? 0))}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              ligneDuPanier.map((l) => (
+                <div key={l.id} className="ligne-editable">
+                  <p className="note">{l.produits?.nom ?? "Produit"} × {l.quantite} : {francs(Number(l.montant ?? 0))}</p>
+                  <FormulaireModifierLigne
+                    ligneId={l.id}
+                    produitId={(l as unknown as { produit_id: string }).produit_id}
+                    quantite={l.quantite}
+                    produits={produits}
+                  />
+                </div>
+              ))
+            )}
             {annule ? (
               <p className="note">Motif : {ligneDuPanier[0].motif_annulation ?? "non précisé"}</p>
             ) : (

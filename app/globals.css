@@ -110,3 +110,7 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 .statut.hors-ligne { color: #b26a00; }
 .attente { border-top: 1px solid var(--bordure); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .attente ul { margin: 0; padding-left: 18px; }
+
+.modifier-ligne { display: grid; grid-template-columns: 1fr 72px auto; gap: 6px; align-items: center; }
+.modifier-ligne select, .modifier-ligne input { padding: 8px; border: 1px solid var(--bordure); border-radius: 8px; background: var(--fond); color: var(--texte); font: inherit; min-width: 0; }
+.modifier-ligne .erreur, .modifier-ligne .succes { grid-column: 1 / -1; margin: 0; }
