@@ -18,6 +18,8 @@ type LigneDepot = {
   quantite_restituee: number;
   quantite_a_payer: number;
   montant_du: number | null;
+  prix_detail: number | null;
+  prix_cession: number | null;
 };
 
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
@@ -61,13 +63,15 @@ async function ContenuDepotVente() {
     restituee: number;
     aPayer: number;
     du: number;
+    marge: number;
+    valeurRestituee: number;
   };
   const groupes = new Map<string, Groupe>();
   for (const l of (lignes ?? []) as LigneDepot[]) {
     if (!groupes.has(l.tiers_id)) {
       groupes.set(l.tiers_id, {
         id: l.tiers_id, nom: l.tiers_nom, type: l.tiers_type, lignes: [],
-        confiee: 0, donnee: 0, vendue: 0, restituee: 0, aPayer: 0, du: 0,
+        confiee: 0, donnee: 0, vendue: 0, restituee: 0, aPayer: 0, du: 0, marge: 0, valeurRestituee: 0,
       });
     }
     const g = groupes.get(l.tiers_id)!;
@@ -78,6 +82,10 @@ async function ContenuDepotVente() {
     g.restituee += Number(l.quantite_restituee);
     g.aPayer += Number(l.quantite_a_payer);
     g.du += Number(l.montant_du ?? 0);
+    // Marge du destinataire : (prix de détail − prix de cession) × quantité vendue.
+    g.marge += (Number(l.prix_detail ?? 0) - Number(l.prix_cession ?? 0)) * Number(l.quantite_vendue);
+    // Valeur restituée : quantité restituée × prix de cession.
+    g.valeurRestituee += Number(l.quantite_restituee) * Number(l.prix_cession ?? 0);
   }
 
   const liste = [...groupes.values()]
@@ -104,6 +112,9 @@ async function ContenuDepotVente() {
           <p>Montant dû : <strong>{francs(g.du)}</strong> · Reçu : {francs(g.recu)} · Reste : <strong>{francs(g.reste)}</strong></p>
           <p className="note">
             Confiées : {g.confiee} · Données : {g.donnee} · Vendues : {g.vendue} · Restituées : {g.restituee} · Restant chez le destinataire : {g.aPayer}
+          </p>
+          <p className="note">
+            Marge du destinataire : {francs(g.marge)} · Valeur restituée : {francs(g.valeurRestituee)}
           </p>
 
           <details>
