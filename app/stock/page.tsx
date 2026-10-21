@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireProduction } from "./FormulaireProduction";
+import { Sommaire } from "@/components/Sommaire";
 
 type LigneStock = {
   evenement_id: string;
@@ -59,16 +60,21 @@ async function ContenuStock() {
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Stock et production</h1>
+      <Sommaire items={[
+        { id: "ajouter", libelle: "Ajouter une production" },
+        { id: "stock", libelle: "Stock par événement" },
+      ]} />
       <p className="total">Valeur de production potentielle : {francs(totalPotentiel)}</p>
       <p className="note">Stock restant = produite − dons − vendue. Les dépôts ne sont pas déduits.</p>
 
       {estGerant && (
-        <section className="carte-vente">
+        <section id="ajouter" className="carte-vente">
           <p className="entete"><strong>Ajouter une production</strong></p>
           <FormulaireProduction evenements={evenements ?? []} produits={produits ?? []} />
         </section>
       )}
 
+      <h2 id="stock">Stock par événement</h2>
       {parEvenement.size === 0 && <p className="note">Aucune production enregistrée.</p>}
 
       {[...parEvenement.entries()].map(([id, e]) => (

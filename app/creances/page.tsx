@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { FormulaireReglement } from "./FormulaireReglement";
 import { FormulaireReglementDepot } from "@/app/depot-vente/FormulaireReglementDepot";
 import { dateFr, dateHeureFr } from "@/lib/dates";
+import { Sommaire } from "@/components/Sommaire";
 
 type Client = { id: string; nom: string; telephone: string | null; type: string | null };
 
@@ -109,6 +110,10 @@ async function ContenuCreances() {
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Créances</h1>
+      <Sommaire items={[
+        { id: "clients", libelle: "Clients à crédit" },
+        { id: "depot-vente", libelle: "Dépôt-vente" },
+      ]} />
       <p className="total">Reste à recouvrer : {francs(totalClients + totalDepots)} ({lignesClients.length + lignesDepots.length} créancier(s))</p>
       <p className="note">Clients à crédit : {francs(totalClients)} · Dépôt-vente : {francs(totalDepots)}</p>
 

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { chargerPaie } from "@/lib/paie-donnees";
 import { FormulaireVersement } from "./FormulaireVersement";
 import { dateFr, dateHeureFr } from "@/lib/dates";
+import { Sommaire } from "@/components/Sommaire";
 
 type Params = { mois?: string };
 
@@ -44,10 +45,17 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Paie et épargne {annee}</h1>
+        <Sommaire items={[
+          { id: "calcul", libelle: "Calcul mensuel" },
+          { id: "fiche", libelle: "Fiche du mois" },
+          { id: "reste", libelle: "Reste à verser" },
+          { id: "versement", libelle: "Versement" },
+          { id: "journal", libelle: "Journal" },
+        ]} />
       <p className="total">Enveloppe distribuable : {francs(totalEnveloppe)}</p>
       <p className="note">Calcul selon les règles R15 à R18, comme le classeur.</p>
 
-      <section className="carte-vente">
+      <section id="calcul" className="carte-vente">
         <p className="entete"><strong>Calcul mensuel</strong></p>
         <div style={{ overflowX: "auto" }}>
           <table className="tableau">
@@ -58,12 +66,12 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
               {lignes.map((l) => (
                 <tr key={l.mois}>
                   <td>{NOMS_MOIS_COURT[l.mois - 1]}</td>
-                  <td className="nombre">{l.actif ? francs(l.resultatExploitation) : "—"}</td>
-                  <td className="nombre">{l.actif ? francs(l.resultatAvantImpot) : "—"}</td>
+                  <td className={`nombre ${l.resultatExploitation < 0 ? "negatif" : ""}`}>{l.actif ? francs(l.resultatExploitation) : "—"}</td>
+                  <td className={`nombre ${l.resultatAvantImpot < 0 ? "negatif" : ""}`}>{l.actif ? francs(l.resultatAvantImpot) : "—"}</td>
                   <td className="nombre">{l.actif ? francs(l.impot) : "—"}</td>
                   <td className="nombre">{l.actif ? francs(l.reserve) : "—"}</td>
                   <td className="nombre">{l.actif ? francs(l.epargne) : "—"}</td>
-                  <td className="nombre">{l.actif ? francs(l.disponible) : "—"}</td>
+                  <td className={`nombre ${l.disponible < 0 ? "negatif" : ""}`}>{l.actif ? francs(l.disponible) : "—"}</td>
                   <td className="nombre">{l.actif ? francs(l.enveloppe) : "—"}</td>
                 </tr>
               ))}
@@ -73,7 +81,7 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
         <p className="note">Mois actifs : {actifs.length}. Les mois sans chiffre d&apos;affaires ni dépense ne sont pas pris en compte.</p>
       </section>
 
-      <section className="carte-vente">
+      <section id="fiche" className="carte-vente">
         <p className="entete"><strong>Fiche de paie du mois</strong></p>
         <form method="get" className="formulaire">
           <select name="mois" defaultValue={String(moisFiche)}>
@@ -117,7 +125,7 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
         </div>
       </section>
 
-      <section className="carte-vente">
+      <section id="reste" className="carte-vente">
         <p className="entete"><strong>Reste à verser (cumul de l&apos;année)</strong></p>
         {collaborateurs.map((c) => {
           const du = (duParMois.get(c.id) ?? []).reduce((s, v) => s + v, 0);
@@ -131,13 +139,13 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
       </section>
 
       {estGerant && (
-        <section className="carte-vente">
+        <section id="versement" className="carte-vente">
           <p className="entete"><strong>Enregistrer un versement</strong></p>
           <FormulaireVersement collaborateurs={collaborateurs.map((c) => ({ id: c.id, nom: c.nom }))} moisParDefaut={moisFiche} />
         </section>
       )}
 
-      <section className="carte-vente">
+      <section id="journal" className="carte-vente">
         <p className="entete"><strong>Journal des versements</strong></p>
         {versements.length === 0 && <p className="note">Aucun versement enregistré.</p>}
         {versements.map((v) => {

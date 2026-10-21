@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireDatesEvenement, FormulairePalier, FormulairePrimeManuelle } from "./FormulairesPrimes";
 import { dateFr, dateHeureFr } from "@/lib/dates";
+import { Sommaire } from "@/components/Sommaire";
 
 type LignePrime = {
   commercial_nom: string;
@@ -50,10 +51,16 @@ async function ContenuPrimes() {
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Primes commerciales</h1>
+      <Sommaire items={[
+        { id: "primes", libelle: "Primes" },
+        { id: "dates", libelle: "Dates" },
+        { id: "baremes", libelle: "Barèmes" },
+        { id: "manuelles", libelle: "Saisies manuelles" },
+      ]} />
       <p className="total">Total des primes : {francs(total)}</p>
       <p className="note">Prime = total vendu × taux du palier atteint. Rattachée au mois de fin de l&apos;événement (point de vente : année de chaque vente).</p>
 
-      <section className="carte-vente">
+      <section id="primes" className="carte-vente">
         <p className="entete"><strong>Primes par commercial</strong></p>
         {lignes.length === 0 && <p className="note">Aucune prime calculée.</p>}
         {lignes.map((l, i) => (
@@ -66,7 +73,7 @@ async function ContenuPrimes() {
 
       {estGerant && (
         <>
-          <section className="carte-vente">
+          <section id="dates" className="carte-vente">
             <p className="entete"><strong>Dates des événements</strong></p>
             <p className="note">
               {(evenements ?? []).map((e) => `${e.nom} : ${dateFr(e.date_debut, "?")} → ${dateFr(e.date_fin, "?")}`).join(" · ")}
@@ -74,7 +81,7 @@ async function ContenuPrimes() {
             <FormulaireDatesEvenement evenements={(evenements ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />
           </section>
 
-          <section className="carte-vente">
+          <section id="baremes" className="carte-vente">
             <p className="entete"><strong>Barèmes</strong></p>
             {(baremes ?? []).map((b, i) => (
               <p key={i} className="note">
@@ -84,7 +91,7 @@ async function ContenuPrimes() {
             <FormulairePalier evenements={(evenements ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />
           </section>
 
-          <section className="carte-vente">
+          <section id="manuelles" className="carte-vente">
             <p className="entete"><strong>Anciennes saisies manuelles de ventes</strong></p>
             <FormulairePrimeManuelle
               evenements={(evenements ?? []).map((e) => ({ id: e.id, nom: e.nom }))}

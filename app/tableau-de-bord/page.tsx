@@ -16,6 +16,7 @@ import {
   type ProductionI,
   type VenteProduitI,
 } from "@/lib/indicateurs";
+import { Sommaire } from "@/components/Sommaire";
 
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
 const evolution = (a: number, b: number) => {
@@ -197,6 +198,15 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Tableau de bord</h1>
+      <Sommaire items={[
+        { id: "indicateurs", libelle: "Indicateurs" },
+        { id: "comparaison", libelle: "Comparaison" },
+        { id: "origine", libelle: "Par origine" },
+        { id: "hors-produits", libelle: "Hors produits" },
+        { id: "produits", libelle: "Produits" },
+        { id: "encaissements", libelle: "Créances" },
+        { id: "controle", libelle: "Contrôle 2026" },
+      ]} />
       <BandeauControles />
 
       <form method="get" className="formulaire">
@@ -231,7 +241,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
         <button type="submit" className="secondaire">Afficher</button>
       </form>
 
-      <section className="carte-vente">
+      <section id="indicateurs" className="carte-vente">
         <p className="entete"><strong>Indicateurs</strong></p>
         {indicateurs.map(([libelle, a, b]) => (
           <p key={libelle} className="note">
@@ -241,7 +251,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
         <p className="note">Créances à recouvrer : <strong>{francs(creancesTotales)}</strong> · Stock restant des événements : {Math.round(stockRestant * 10) / 10} (état à aujourd&apos;hui)</p>
       </section>
 
-      <section className="carte-vente">
+      <section id="comparaison" className="carte-vente">
         <p className="entete"><strong>Comparaison dynamique : {portee === "lieu" ? nomLieuChoisi ?? "lieu non choisi" : PORTEES.find((p) => p.valeur === portee)?.libelle}</strong></p>
         <div style={{ overflowX: "auto" }}>
           <table className="tableau">
@@ -257,7 +267,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
                     <td>{l.libelle}</td>
                     <td className="nombre">{l.format(a)}</td>
                     <td className="nombre">{l.format(b)}</td>
-                    <td className="nombre">{l.ratio ? `${Math.round((a - b) * 1000) / 10} pts` : evolution(a, b)}</td>
+                    <td className={`nombre ${a - b < 0 ? "negatif" : a - b > 0 ? "positif" : ""}`}>{l.ratio ? `${Math.round((a - b) * 1000) / 10} pts` : evolution(a, b)}</td>
                   </tr>
                 );
               })}
@@ -278,7 +288,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
                       <td>{l.nom}</td>
                       <td className="nombre">{francs(l.ca)}</td>
                       <td className="nombre">{francs(l.depenses)}</td>
-                      <td className="nombre">{francs(l.benefice)}</td>
+                      <td className={`nombre ${l.benefice < 0 ? "negatif" : ""}`}>{francs(l.benefice)}</td>
                       <td className="nombre">{francs(l.dime)}</td>
                       <td className="nombre">{l.volume}</td>
                       <td className="nombre">{l.nombreVentes}</td>
@@ -291,19 +301,19 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
         )}
       </section>
 
-      <section className="carte-vente">
+      <section id="origine" className="carte-vente">
         <p className="entete"><strong>Résultats par origine (période A)</strong></p>
         <p className="note">Événements : CA {francs(A.caEvenements)} · dépenses {francs(A.depensesEvenements)} · bénéfice {francs(A.beneficeEvenements)} · dîme {francs(A.dimeEvenements)} · primes {francs(A.primesEvenements)}</p>
         <p className="note">Point de vente : CA {francs(A.caPointDeVente)} · dépenses {francs(A.depensesPointDeVente)} · bénéfice {francs(A.beneficePointDeVente)} · dîme {francs(A.dimePointDeVente)} · primes {francs(A.primesPointDeVente)}</p>
       </section>
 
-      <section className="carte-vente">
+      <section id="hors-produits" className="carte-vente">
         <p className="entete"><strong>CA et bénéfice hors produits exclus (période A)</strong></p>
         <p className="note">CA total {francs(hors.caTotal)} · CA hors exclusions {francs(hors.caHors)} · dépenses {francs(hors.depenses)} · bénéfice hors exclusions {francs(hors.beneficeHors)}</p>
         <p className="note">{exclus.size === 0 ? "Aucun produit exclu." : `${exclus.size} produit(s) exclu(s). Les dépenses restent intégralement prises en compte.`}</p>
       </section>
 
-      <section className="carte-vente">
+      <section id="produits" className="carte-vente">
         <p className="entete"><strong>Analyse des produits (période A)</strong></p>
         {produitsA.length === 0 && <p className="note">Aucune vente sur la période.</p>}
         {produitsA.map((p) => (
@@ -322,7 +332,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
         )}
       </section>
 
-      <section className="carte-vente">
+      <section id="encaissements" className="carte-vente">
         <p className="entete"><strong>Encaissements et créances (à aujourd&apos;hui)</strong></p>
         <p className="note">Clients à crédit : reste {francs(totalClients)} · Dépôt-vente : reste {francs(totalDepots)} · Total {francs(creancesTotales)}</p>
         <p className="entete"><strong>Top 5 des créanciers à relancer</strong></p>
@@ -333,7 +343,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
       </section>
 
       {ecarts && (
-        <section className="carte-vente">
+        <section id="controle" className="carte-vente">
           <p className="entete"><strong>Contrôle : 2026 contre le classeur v14 corrigé</strong></p>
           {ecarts.map(([libelle, app, ref]) => {
             const ecart = Math.round(app - ref);

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chargerPaie } from "@/lib/paie-donnees";
 import { calculerIndicateurs, calculerResultats, type DepenseI, type EvenementI, type PrimeI, type VenteComplete } from "@/lib/indicateurs";
 import type { Feuille } from "@/lib/xlsx";
+import { dateFr } from "@/lib/dates";
 
 // Jeux d'export et profils autorisés (cahier des charges, section 3 : la paie est réservée au gérant).
 export const ROLES_PAR_JEU = {
@@ -57,9 +58,12 @@ function avecColonnes(nom: string, lignes: Ligne[], cols: Colonnes): Feuille {
   return {
     nom,
     entetes: cols.map(([, h]) => h),
-    lignes: lignes.map((l) => cols.map(([k]) => (l[k] === undefined ? null : l[k]))),
+    lignes: lignes.map((l) => cols.map(([k]) => lisible(l[k]))),
   };
 }
+
+// Une date AAAA-MM-JJ devient JJ/MM/AAAA ; les autres valeurs ne changent pas.
+const lisible = (v: unknown): unknown => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? dateFr(v) : v === undefined ? null : v);
 
 // Feuille générique : toutes les colonnes, sans identifiants techniques, en-têtes lisibles.
 function generique(nom: string, lignes: Ligne[], garder?: string[]): Feuille {
@@ -71,7 +75,7 @@ function generique(nom: string, lignes: Ligne[], garder?: string[]): Feuille {
   return {
     nom,
     entetes: cles.map(entete),
-    lignes: lignes.map((l) => cles.map((k) => (l[k] === undefined ? null : l[k]))),
+    lignes: lignes.map((l) => cles.map((k) => lisible(l[k]))),
   };
 }
 

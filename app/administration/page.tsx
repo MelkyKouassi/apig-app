@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireCollaborateur, FormulaireEntreprise, FormulaireParametres, FormulaireProfil } from "./Formulaires";
 import { dateHeureFr } from "@/lib/dates";
+import { Sommaire } from "@/components/Sommaire";
 
 const TABLES: Record<string, string> = {
   entreprise: "Entreprise",
@@ -67,6 +68,13 @@ async function ContenuAdministration() {
         <Link href="/" className="retour">← Accueil</Link>
         <strong>Administration</strong>
       </p>
+      <Sommaire items={[
+        { id: "comptes", libelle: "Comptes" },
+        { id: "entreprise", libelle: "Entreprise" },
+        { id: "collaborateurs", libelle: "Collaborateurs" },
+        { id: "parametres", libelle: "Paramètres" },
+        { id: "journal", libelle: "Journal d'audit" },
+      ]} />
 
       <nav className="sommaire" aria-label="Sections">
         <a href="#comptes">Comptes</a><a href="#entreprise">Entreprise</a><a href="#collaborateurs">Collaborateurs</a><a href="#parametres">Paramètres</a><a href="#journal">Journal</a>

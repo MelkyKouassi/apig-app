@@ -114,7 +114,7 @@ export function calculerControles(d: DonneesControles): Controle[] {
 
   const datesFutures: LigneControle[] = [
     ...d.ventes.filter((v) => ouvrir(v.date_vente, d.aujourdhui)).map((v) => ({ texte: `Vente du ${dateFr(v.date_vente)}`, href: "/ventes" })),
-    ...d.depenses.filter((x) => ouvrir(x.date_depense, d.aujourdhui)).map((x) => ({ texte: `Dépense du ${x.date_depense}`, href: "/ventes" })),
+    ...d.depenses.filter((x) => ouvrir(x.date_depense, d.aujourdhui)).map((x) => ({ texte: `Dépense du ${dateFr(x.date_depense)}`, href: "/ventes" })),
     ...d.depots.filter((l) => ouvrir(l.date_remise, d.aujourdhui)).map((l) => ({ texte: `Dépôt ${l.tiers_nom} du ${dateFr(l.date_remise)}`, href: "/depot-vente" })),
     ...d.reglements.filter((r) => ouvrir(r.date_reglement, d.aujourdhui)).map((r) => ({ texte: `Règlement du ${dateFr(r.date_reglement)}`, href: "/creances" })),
   ];

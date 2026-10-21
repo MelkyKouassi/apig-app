@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { calculerControles, resumeControles } from "@/lib/controles";
 import { chargerDonneesControles } from "@/lib/controles-donnees";
+import { Sommaire } from "@/components/Sommaire";
 
 export default function PageControles() {
   return (
@@ -27,12 +28,16 @@ async function ContenuControles() {
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Contrôles de cohérence</h1>
+      <Sommaire items={[
+        { id: "bloquant", libelle: "À corriger" },
+        { id: "surveiller", libelle: "À surveiller" },
+      ]} />
       <p className="total">
         <span className="erreur">{resume.bloquants} à corriger</span> · {resume.surveiller} à surveiller
       </p>
       {controles.length === 0 && <p className="note">Aucune anomalie détectée.</p>}
       {(["bloquant", "surveiller"] as const).map((g) => (
-        <section key={g} className="carte-vente">
+        <section id={g} key={g} className="carte-vente">
           <p className="entete"><strong>{g === "bloquant" ? "À corriger" : "À surveiller"}</strong></p>
           {controles.filter((c) => c.gravite === g).map((c) => (
             <details key={c.id}>
