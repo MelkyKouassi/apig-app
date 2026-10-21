@@ -5,6 +5,7 @@
   --accent: #0b5cad;
   --erreur: #b3261e;
   --bordure: #d0d5dd;
+  --surface: #f7f8fa;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,6 +16,7 @@
     --accent: #8ab4f8;
     --erreur: #f2b8b5;
     --bordure: #3c4043;
+    --surface: #1b1d1f;
   }
 }
 
@@ -27,15 +29,23 @@ body {
 }
 
 .page-centree {
+  width: 100%;
   max-width: 420px;
   margin: 0 auto;
-  padding: 32px 16px;
+  padding: 24px 16px 32px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+}
+@media (min-width: 760px) {
+  .page-centree { max-width: 960px; padding: 40px 24px 48px; }
 }
 
-h1 { font-size: 1.6rem; margin: 0; }
+h1 { font-size: 1.6rem; margin: 0; line-height: 1.2; }
+.chiffre { font-variant-numeric: tabular-nums; font-weight: 700; }
+fieldset { border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+legend { font-weight: 600; padding: 0 6px; color: var(--texte-doux); }
 .sous-titre { color: var(--texte-doux); margin: 0; font-size: 1.1rem; }
 .note { color: var(--texte-doux); font-size: 0.9rem; }
 .erreur { color: var(--erreur); }
@@ -80,12 +90,20 @@ select {
 .ligne-vente select { grid-column: 1 / -1; }
 .prix-ligne { grid-column: 1 / 2; color: var(--texte-doux); font-size: 0.9rem; }
 .ligne-vente .petit { grid-column: 2 / 3; padding: 8px; font-size: 0.85rem; }
-.total { font-weight: 700; font-size: 1.2rem; margin: 0; }
+.total { font-weight: 700; font-size: 1.2rem; margin: 0; font-variant-numeric: tabular-nums; }
+.tableau { width: 100%; border-collapse: collapse; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.tableau th, .tableau td { padding: 8px 6px; border-bottom: 1px solid var(--bordure); text-align: left; }
+.tableau th { color: var(--texte-doux); font-weight: 600; }
+.tableau td.nombre, .tableau th.nombre { text-align: right; }
 .succes { color: var(--accent); font-weight: 600; }
 .retour { color: var(--accent); text-decoration: none; }
 .bouton { display: inline-block; text-align: center; padding: 14px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
 
-.carte-vente { border: 1px solid var(--bordure); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.carte-vente { border: 1px solid var(--bordure); border-radius: 12px; padding: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+.carte-vente > .entete { font-size: 1.05rem; padding-bottom: 8px; border-bottom: 1px solid var(--bordure); }
+.carte-vente p { margin: 0; font-variant-numeric: tabular-nums; }
+.carte-vente details summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.carte-vente details[open] summary { margin-bottom: 4px; }
 .carte-vente ul { margin: 0; padding-left: 18px; }
 .carte-vente.annulee { opacity: 0.6; }
 .entete { margin: 0; }
