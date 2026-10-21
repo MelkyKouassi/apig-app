@@ -11,7 +11,7 @@ export async function chargerDonneesControles(supabase: SupabaseClient): Promise
     supabase.from("v_stock").select("evenement_id, evenement_nom, produit_nom, stock_restant"),
     supabase.from("prix").select("produit_id, date_effet"),
     supabase.from("tiers").select("id, nom"),
-    supabase.from("evenements").select("id, nom"),
+    supabase.from("evenements").select("id, nom, est_point_de_vente"),
     supabase.from("productions").select("evenement_id"),
     supabase.from("parametres").select("delai_credit_jours").limit(1).maybeSingle(),
   ]);
@@ -22,6 +22,7 @@ export async function chargerDonneesControles(supabase: SupabaseClient): Promise
     tiersNoms: new Map((tiers ?? []).map((t) => [t.id, t.nom])),
     evenementsNoms: new Map((evenements ?? []).map((e) => [e.id, e.nom])),
     evenementsAvecProduction: new Set((productions ?? []).map((p) => p.evenement_id)),
+    pointsDeVente: new Set((evenements ?? []).filter((e) => e.est_point_de_vente).map((e) => e.id)),
     ventes: (ventes ?? []) as DonneesControles["ventes"],
     depenses: (depenses ?? []) as DonneesControles["depenses"],
     reglements: (reglements ?? []) as DonneesControles["reglements"],

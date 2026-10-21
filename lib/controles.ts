@@ -10,6 +10,7 @@ export type DonneesControles = {
   tiersNoms: Map<string, string>;
   evenementsNoms: Map<string, string>;
   evenementsAvecProduction: Set<string>;
+  pointsDeVente: Set<string>;
   ventes: { id: string; date_vente: string | null; montant: number | null; prix_unitaire: number | null; evenement_id: string | null; produit_id: string | null; remise_pct: number | null; remise_fcfa: number | null; mode_paiement: string; tiers_id: string | null; quantite: number }[];
   depenses: { date_depense: string | null }[];
   reglements: { tiers_id: string | null; origine: string; montant: number; date_reglement: string | null }[];
@@ -151,7 +152,7 @@ export function calculerControles(d: DonneesControles): Controle[] {
   const evtAvecVentes = new Set(d.ventes.map((v) => v.evenement_id).filter((x): x is string => !!x));
   ajouter({
     id: "evenement-sans-production", gravite: "surveiller", libelle: "Événements sans bloc de production ni de stock",
-    lignes: [...evtAvecVentes].filter((id) => !d.evenementsAvecProduction.has(id))
+    lignes: [...evtAvecVentes].filter((id) => !d.evenementsAvecProduction.has(id) && !d.pointsDeVente.has(id))
       .map((id) => ({ texte: nomEvt(id), href: "/stock" })),
   });
 
