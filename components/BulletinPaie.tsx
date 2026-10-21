@@ -1,3 +1,4 @@
+import { dateFr, dateHeureFr } from "@/lib/dates";
 // Mise en page d'un bulletin de paie (A4). Partagée par le bulletin individuel et l'impression groupée.
 
 export const NOMS_MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
@@ -78,7 +79,7 @@ export function BulletinPaie({ entreprise, collab, annee, mois, totalParts, enve
       <table>
         <tbody>
           <tr><th style={{ width: "32%" }}>Nom et prénoms</th><td>{collab.nom}</td><th style={{ width: "18%" }}>Matricule</th><td>{vide(collab.matricule, "—")}</td></tr>
-          <tr><th>Fonction</th><td>{vide(collab.fonction, "—")}</td><th>Date d&apos;entrée</th><td>{vide(collab.date_entree, "—")}</td></tr>
+          <tr><th>Fonction</th><td>{vide(collab.fonction, "—")}</td><th>Date d&apos;entrée</th><td>{dateFr(collab.date_entree)}</td></tr>
           <tr><th>N° CNPS</th><td>{vide(collab.numero_cnps)}</td><th>Mode de paiement</th><td>{vide(collab.mode_paiement, "—")}</td></tr>
         </tbody>
       </table>

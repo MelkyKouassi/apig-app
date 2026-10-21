@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { EnregistrerSW } from "@/components/EnregistrerSW";
 import { CurseurDefilement } from "@/components/CurseurDefilement";
+import { BarreNavigation } from "@/components/BarreNavigation";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "APIG-PHARMA",
@@ -20,6 +22,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="fr">
       <body>
         <EnregistrerSW />
+        <Suspense fallback={null}>
+          <BarreNavigation />
+        </Suspense>
         {children}
         <CurseurDefilement />
       </body>

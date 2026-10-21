@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireReglement } from "./FormulaireReglement";
 import { FormulaireReglementDepot } from "@/app/depot-vente/FormulaireReglementDepot";
+import { dateFr, dateHeureFr } from "@/lib/dates";
 
 type Client = { id: string; nom: string; telephone: string | null; type: string | null };
 
@@ -111,7 +112,11 @@ async function ContenuCreances() {
       <p className="total">Reste à recouvrer : {francs(totalClients + totalDepots)} ({lignesClients.length + lignesDepots.length} créancier(s))</p>
       <p className="note">Clients à crédit : {francs(totalClients)} · Dépôt-vente : {francs(totalDepots)}</p>
 
-      <h2>Clients à crédit</h2>
+      <nav className="sommaire" aria-label="Sections">
+        <a href="#clients">Clients à crédit</a><a href="#depot-vente">Dépôt-vente</a>
+      </nav>
+
+      <h2 id="clients">Clients à crédit</h2>
       {lignesClients.length === 0 && <p className="note">Aucun client ne doit encore de l&apos;argent.</p>}
       {lignesClients.map((l) => {
         const client = nomsClients.get(l.id);
@@ -127,7 +132,7 @@ async function ContenuCreances() {
             )}
             <p>Reste à payer : <strong>{francs(l.reste)}</strong> sur {francs(l.c.du)} ({Math.round(l.pct)} % réglé)</p>
             <p className="note">
-              Plus ancienne vente à crédit : {l.c.plusAncienne} · Dernier règlement : {l.c.dernierReglement ?? "aucun"}
+              Plus ancienne vente à crédit : {dateFr(l.c.plusAncienne)} · Dernier règlement : {dateFr(l.c.dernierReglement, "aucun")}
               {l.retard > -999 && ` · Retard : ${Math.max(0, l.retard)} j`}
             </p>
             <p className="note">
@@ -138,7 +143,7 @@ async function ContenuCreances() {
         );
       })}
 
-      <h2>Dépôt-vente</h2>
+      <h2 id="depot-vente">Dépôt-vente</h2>
       {lignesDepots.length === 0 && <p className="note">Aucun destinataire de dépôt-vente ne doit encore de l&apos;argent.</p>}
       {lignesDepots.map((l) => {
         const destinataire = nomsClients.get(l.id);
@@ -153,7 +158,7 @@ async function ContenuCreances() {
             )}
             <p>Reste à payer : <strong>{francs(l.reste)}</strong> sur {francs(l.c.du)} ({Math.round(l.pct)} % réglé)</p>
             <p className="note">
-              Plus ancien dépôt : {l.c.plusAncienne} · Dernier règlement : {l.c.dernierReglement ?? "aucun"}
+              Plus ancien dépôt : {dateFr(l.c.plusAncienne)} · Dernier règlement : {dateFr(l.c.dernierReglement, "aucun")}
             </p>
             {estGerant && <FormulaireReglementDepot tiersId={l.id} reste={l.reste} />}
           </section>

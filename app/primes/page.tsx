@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireDatesEvenement, FormulairePalier, FormulairePrimeManuelle } from "./FormulairesPrimes";
+import { dateFr, dateHeureFr } from "@/lib/dates";
 
 type LignePrime = {
   commercial_nom: string;
@@ -68,7 +69,7 @@ async function ContenuPrimes() {
           <section className="carte-vente">
             <p className="entete"><strong>Dates des événements</strong></p>
             <p className="note">
-              {(evenements ?? []).map((e) => `${e.nom} : ${e.date_debut ?? "?"} → ${e.date_fin ?? "?"}`).join(" · ")}
+              {(evenements ?? []).map((e) => `${e.nom} : ${dateFr(e.date_debut, "?")} → ${dateFr(e.date_fin, "?")}`).join(" · ")}
             </p>
             <FormulaireDatesEvenement evenements={(evenements ?? []).map((e) => ({ id: e.id, nom: e.nom }))} />
           </section>

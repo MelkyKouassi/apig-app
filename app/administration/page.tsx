@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireCollaborateur, FormulaireEntreprise, FormulaireParametres, FormulaireProfil } from "./Formulaires";
+import { dateHeureFr } from "@/lib/dates";
 
 const TABLES: Record<string, string> = {
   entreprise: "Entreprise",
@@ -25,8 +26,6 @@ const TABLES: Record<string, string> = {
   restitutions: "Restitution",
 };
 
-const dateHeure = (iso: string) =>
-  new Date(iso).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 // Résumé lisible d'une ligne du journal : quels champs ont changé.
 function resume(a: { action: string; old_data: Record<string, unknown> | null; new_data: Record<string, unknown> | null }) {
@@ -69,7 +68,11 @@ async function ContenuAdministration() {
         <strong>Administration</strong>
       </p>
 
-      <section>
+      <nav className="sommaire" aria-label="Sections">
+        <a href="#comptes">Comptes</a><a href="#entreprise">Entreprise</a><a href="#collaborateurs">Collaborateurs</a><a href="#parametres">Paramètres</a><a href="#journal">Journal</a>
+      </nav>
+
+      <section id="comptes">
         <p className="entete"><strong>Comptes utilisateurs</strong></p>
         <p className="entete" style={{ fontSize: "0.9rem" }}>
           La création d&apos;un compte se fait dans le tableau de bord Supabase (Authentication). Ici, vous donnez le rôle et l&apos;accès.
@@ -95,12 +98,12 @@ async function ContenuAdministration() {
         </details>
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section id="entreprise" style={{ marginTop: 24 }}>
         <p className="entete"><strong>Entreprise</strong></p>
         {entreprise && <FormulaireEntreprise entreprise={entreprise} />}
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section id="collaborateurs" style={{ marginTop: 24 }}>
         <p className="entete"><strong>Collaborateurs et fiches de paie</strong></p>
         <p className="entete" style={{ fontSize: "0.9rem" }}>
           Le nombre de parts influence directement l&apos;enveloppe de chaque collaborateur.
@@ -127,12 +130,12 @@ async function ContenuAdministration() {
         </details>
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section id="parametres" style={{ marginTop: 24 }}>
         <p className="entete"><strong>Paramètres</strong></p>
         {parametres && <FormulaireParametres p={parametres as Record<string, number | boolean | null>} />}
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section id="journal" style={{ marginTop: 24 }}>
         <p className="entete"><strong>Journal d&apos;audit</strong></p>
         <p className="entete" style={{ fontSize: "0.9rem" }}>Les 100 dernières modifications. Lecture seule.</p>
         <div style={{ overflowX: "auto" }}>
@@ -141,7 +144,7 @@ async function ContenuAdministration() {
             <tbody>
               {(audit ?? []).map((a) => (
                 <tr key={a.id}>
-                  <td>{dateHeure(a.created_at)}</td>
+                  <td>{dateHeureFr(a.created_at)}</td>
                   <td>{a.user_id ? noms.get(a.user_id) ?? "—" : "Système"}</td>
                   <td>{TABLES[a.table_name] ?? a.table_name}</td>
                   <td>{resume(a)}</td>

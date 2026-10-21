@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireReglementDepot } from "./FormulaireReglementDepot";
 import { FormulaireQuantiteVendue, FormulaireRestitution } from "./FormulairesLigneDepot";
+import { dateFr, dateHeureFr } from "@/lib/dates";
 
 type LigneDepot = {
   id: string;
@@ -122,7 +123,7 @@ async function ContenuDepotVente() {
             {g.lignes.map((l) => (
               <div key={l.id} className="carte-vente">
                 <p className="note">
-                  {l.produit_nom} (remis le {l.date_remise}) : confiées {l.quantite_confiee}, données {l.quantite_donnee}, vendues {l.quantite_vendue}, restituées {l.quantite_restituee} · dû {francs(Number(l.montant_du ?? 0))}
+                  {l.produit_nom} (remis le {dateFr(l.date_remise)}) : confiées {l.quantite_confiee}, données {l.quantite_donnee}, vendues {l.quantite_vendue}, restituées {l.quantite_restituee} · dû {francs(Number(l.montant_du ?? 0))}
                 </p>
                 {estGerant && (
                   <>

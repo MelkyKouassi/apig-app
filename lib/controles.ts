@@ -1,3 +1,4 @@
+import { dateFr } from "@/lib/dates";
 // Contrôles de cohérence (cahier, M12). Calcul pur à partir des données chargées.
 
 export type Gravite = "bloquant" | "surveiller";
@@ -31,11 +32,11 @@ export function calculerControles(d: DonneesControles): Controle[] {
   ajouter({
     id: "ventes-sans-prix", gravite: "bloquant", libelle: "Ventes sans prix (montant compté 0 F)",
     lignes: d.ventes.filter((v) => !v.prix_unitaire || Number(v.prix_unitaire) <= 0)
-      .map((v) => ({ texte: `${v.date_vente ?? "sans date"} · ${nomEvt(v.evenement_id)} · quantité ${v.quantite}`, href: "/ventes" })),
+      .map((v) => ({ texte: `${dateFr(v.date_vente, "sans date")} · ${nomEvt(v.evenement_id)} · quantité ${v.quantite}`, href: "/ventes" })),
   });
   ajouter({
     id: "ventes-sans-produit", gravite: "bloquant", libelle: "Ventes : lignes sans produit",
-    lignes: d.ventes.filter((v) => !v.produit_id).map((v) => ({ texte: `${v.date_vente ?? "sans date"} · ${nomEvt(v.evenement_id)}`, href: "/ventes" })),
+    lignes: d.ventes.filter((v) => !v.produit_id).map((v) => ({ texte: `${dateFr(v.date_vente, "sans date")} · ${nomEvt(v.evenement_id)}`, href: "/ventes" })),
   });
   ajouter({
     id: "ventes-sans-date", gravite: "bloquant", libelle: "Ventes : lignes sans date",
@@ -43,7 +44,7 @@ export function calculerControles(d: DonneesControles): Controle[] {
   });
   ajouter({
     id: "ventes-sans-evenement", gravite: "bloquant", libelle: "Ventes : lignes sans événement ni point de vente",
-    lignes: d.ventes.filter((v) => !v.evenement_id).map((v) => ({ texte: `${v.date_vente ?? "sans date"}`, href: "/ventes" })),
+    lignes: d.ventes.filter((v) => !v.evenement_id).map((v) => ({ texte: `${dateFr(v.date_vente, "sans date")}`, href: "/ventes" })),
   });
   ajouter({
     id: "stock-negatif", gravite: "bloquant", libelle: "Stock : stock restant négatif",
@@ -53,12 +54,12 @@ export function calculerControles(d: DonneesControles): Controle[] {
   ajouter({
     id: "depot-depasse", gravite: "bloquant", libelle: "Dépôt-vente : vendu + restitué + donné supérieur à la quantité confiée",
     lignes: d.depots.filter((l) => l.quantite_vendue + l.quantite_restituee + l.quantite_donnee > Number(l.quantite_confiee ?? 0))
-      .map((l) => ({ texte: `${l.tiers_nom} · ${l.produit_nom} (${l.date_remise})`, href: "/depot-vente" })),
+      .map((l) => ({ texte: `${l.tiers_nom} · ${l.produit_nom} (${dateFr(l.date_remise)})`, href: "/depot-vente" })),
   });
   ajouter({
     id: "depot-sans-quantite", gravite: "bloquant", libelle: "Dépôt-vente : lignes sans quantité confiée",
     lignes: d.depots.filter((l) => !(Number(l.quantite_confiee) > 0))
-      .map((l) => ({ texte: `${l.tiers_nom} · ${l.produit_nom} (${l.date_remise})`, href: "/depot-vente" })),
+      .map((l) => ({ texte: `${l.tiers_nom} · ${l.produit_nom} (${dateFr(l.date_remise)})`, href: "/depot-vente" })),
   });
   ajouter({
     id: "depot-sans-coefficient", gravite: "bloquant", libelle: "Dépôt-vente : lignes sans coefficient de cession",
@@ -71,7 +72,7 @@ export function calculerControles(d: DonneesControles): Controle[] {
       if (l.prix_cession === null || l.montant_du === null) return false;
       const attendu = Math.max(0, Number(l.quantite_confiee ?? 0) - l.quantite_donnee - l.quantite_restituee) * Number(l.prix_cession);
       return Math.abs(attendu - Number(l.montant_du)) > 1;
-    }).map((l) => ({ texte: `${l.tiers_nom} · ${l.produit_nom} (${l.date_remise})`, href: "/depot-vente" })),
+    }).map((l) => ({ texte: `${l.tiers_nom} · ${l.produit_nom} (${dateFr(l.date_remise)})`, href: "/depot-vente" })),
   });
 
   // Règlements supérieurs au dû, par destinataire et par client.
@@ -103,19 +104,19 @@ export function calculerControles(d: DonneesControles): Controle[] {
   ajouter({
     id: "credit-sans-client", gravite: "surveiller", libelle: "Ventes à crédit sans nom de client",
     lignes: d.ventes.filter((v) => v.mode_paiement === "credit" && !v.tiers_id)
-      .map((v) => ({ texte: `${v.date_vente ?? "sans date"} · ${nomEvt(v.evenement_id)}`, href: "/ventes" })),
+      .map((v) => ({ texte: `${dateFr(v.date_vente, "sans date")} · ${nomEvt(v.evenement_id)}`, href: "/ventes" })),
   });
   ajouter({
     id: "remise-double", gravite: "surveiller", libelle: "Ventes : remise en % et en F saisies ensemble",
     lignes: d.ventes.filter((v) => Number(v.remise_pct ?? 0) > 0 && Number(v.remise_fcfa ?? 0) > 0)
-      .map((v) => ({ texte: `${v.date_vente ?? "sans date"} · ${nomEvt(v.evenement_id)}`, href: "/ventes" })),
+      .map((v) => ({ texte: `${dateFr(v.date_vente, "sans date")} · ${nomEvt(v.evenement_id)}`, href: "/ventes" })),
   });
 
   const datesFutures: LigneControle[] = [
-    ...d.ventes.filter((v) => ouvrir(v.date_vente, d.aujourdhui)).map((v) => ({ texte: `Vente du ${v.date_vente}`, href: "/ventes" })),
+    ...d.ventes.filter((v) => ouvrir(v.date_vente, d.aujourdhui)).map((v) => ({ texte: `Vente du ${dateFr(v.date_vente)}`, href: "/ventes" })),
     ...d.depenses.filter((x) => ouvrir(x.date_depense, d.aujourdhui)).map((x) => ({ texte: `Dépense du ${x.date_depense}`, href: "/ventes" })),
-    ...d.depots.filter((l) => ouvrir(l.date_remise, d.aujourdhui)).map((l) => ({ texte: `Dépôt ${l.tiers_nom} du ${l.date_remise}`, href: "/depot-vente" })),
-    ...d.reglements.filter((r) => ouvrir(r.date_reglement, d.aujourdhui)).map((r) => ({ texte: `Règlement du ${r.date_reglement}`, href: "/creances" })),
+    ...d.depots.filter((l) => ouvrir(l.date_remise, d.aujourdhui)).map((l) => ({ texte: `Dépôt ${l.tiers_nom} du ${dateFr(l.date_remise)}`, href: "/depot-vente" })),
+    ...d.reglements.filter((r) => ouvrir(r.date_reglement, d.aujourdhui)).map((r) => ({ texte: `Règlement du ${dateFr(r.date_reglement)}`, href: "/creances" })),
   ];
   ajouter({ id: "dates-futures", gravite: "surveiller", libelle: "Dates postérieures à aujourd'hui", lignes: datesFutures });
 
@@ -128,7 +129,7 @@ export function calculerControles(d: DonneesControles): Controle[] {
   ajouter({
     id: "depot-doublon", gravite: "surveiller", libelle: "Dépôt-vente : lignes en doublon (même destinataire, produit et date)",
     lignes: d.depots.filter((l) => (cles.get(`${l.tiers_id}|${l.produit_nom}|${l.date_remise}`) ?? 0) > 1)
-      .map((l) => ({ texte: `${l.tiers_nom} · ${l.produit_nom} (${l.date_remise})`, href: "/depot-vente" })),
+      .map((l) => ({ texte: `${l.tiers_nom} · ${l.produit_nom} (${dateFr(l.date_remise)})`, href: "/depot-vente" })),
   });
 
   // Destinataires sans vente ni restitution.

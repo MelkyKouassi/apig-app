@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { chargerPaie } from "@/lib/paie-donnees";
 import { FormulaireVersement } from "./FormulaireVersement";
+import { dateFr, dateHeureFr } from "@/lib/dates";
 
 type Params = { mois?: string };
 
@@ -143,7 +144,7 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
           const nom = collaborateurs.find((c) => c.id === v.collaborateur_id)?.nom ?? "Collaborateur";
           return (
             <p key={v.id} className="note">
-              {v.date_versement} · {nom} · mois concerné {NOMS_MOIS[v.mois - 1]} · {francs(v.montant)}
+              {dateFr(v.date_versement)} · {nom} · mois concerné {NOMS_MOIS[v.mois - 1]} · {francs(v.montant)}
             </p>
           );
         })}
