@@ -2,134 +2,52 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { calculerPaie, partCollaborateur, type MoisDonnees, type OptionsPaie } from "@/lib/paie";
+import { chargerPaie } from "@/lib/paie-donnees";
+import { FormulaireVersement } from "./FormulaireVersement";
+
+type Params = { mois?: string };
 
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
-const NOMS_MOIS = ["Janv.", "Févr.", "Mars", "Avril", "Mai", "Juin", "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Déc."];
+const NOMS_MOIS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+const NOMS_MOIS_COURT = ["Janv.", "Févr.", "Mars", "Avril", "Mai", "Juin", "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Déc."];
 
-export default function PagePaie() {
+export default function PagePaie(props: PageProps<"/paie">) {
   return (
     <Suspense fallback={<p className="page-centree">Chargement...</p>}>
-      <ContenuPaie />
+      <ContenuPaie searchParams={props.searchParams as Promise<Params>} />
     </Suspense>
   );
 }
 
-async function ContenuPaie() {
+async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) {
+  const sp = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
   const { data: profil } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (profil?.role !== "gerant" && profil?.role !== "comptable") redirect("/");
+  const estGerant = profil.role === "gerant";
 
-  const [{ data: p }, { data: ventes }, { data: depenses }, { data: evts }, { data: primes }, { data: charges }, { data: chargesReelles }, { data: collabs }, { data: versements }] = await Promise.all([
-    supabase.from("parametres").select("*").limit(1).maybeSingle(),
-    supabase.from("ventes").select("date_vente, montant, evenement_id").eq("statut", "actif"),
-    supabase.from("depenses").select("date_depense, montant, categorie, evenement_id").eq("statut", "actif"),
-    supabase.from("evenements").select("id, est_point_de_vente, taux_dime, date_fin"),
-    supabase.from("v_primes").select("annee, mois, prime"),
-    supabase.from("charges").select("id, nature, montant_habituel").eq("actif", true),
-    supabase.from("charges_mensuelles").select("charge_id, annee, mois, montant_reel"),
-    supabase.from("collaborateurs").select("id, nom, parts"),
-    supabase.from("versements").select("collaborateur_id, annee, mois, montant"),
-  ]);
+  const paie = await chargerPaie(supabase);
+  const { annee, lignes, collaborateurs, duParMois, versements } = paie;
 
-  const annee = Number(p?.annee_reference ?? 2026);
-  const options: OptionsPaie = {
-    taux_impot: Number(p?.taux_impot ?? 0.25),
-    reserve_legale_taux: Number(p?.reserve_legale_taux ?? 0.1),
-    reserve_plafond_taux: Number(p?.reserve_plafond_taux ?? 0.2),
-    capital_social: Number(p?.capital_social ?? 1500000),
-    reserve_deja_constituee: Number(p?.reserve_deja_constituee ?? 0),
-    epargne_taux: Number(p?.epargne_taux ?? 0.1),
-    part_distribuee: Number(p?.part_distribuee ?? 0.5),
-    reintegrer_remunerations: Boolean(p?.reintegrer_remunerations),
-    deduire_dime: Boolean(p?.deduire_dime),
-    reporter_deficits: Boolean(p?.reporter_deficits),
-  };
+  // Mois de la fiche : celui demandé, sinon le dernier mois avec une enveloppe.
+  const dernierMois = Math.max(1, ...lignes.filter((l) => l.enveloppe > 0).map((l) => l.mois));
+  const moisFiche = Math.min(12, Math.max(1, Number(sp.mois ?? dernierMois)));
+  const enveloppeMois = lignes[moisFiche - 1]?.enveloppe ?? 0;
 
-  const lieux = new Map((evts ?? []).map((e) => [e.id, e]));
-  const donnees: MoisDonnees[] = Array.from({ length: 12 }, (_, i) => ({ ca: 0, depenses: 0, remunerations: 0, primes: 0, dime: 0, chargesFixes: 0, chargesNonFixes: 0 }));
-  const benefLieuMois = new Map<string, number>(); // clé lieu|mois (points de vente)
-  const totalEvenement = new Map<string, { ca: number; dep: number; mois: number | null }>(); // événements : total et mois de fin
-
-  for (const v of ventes ?? []) {
-    if (!v.date_vente || Number(v.date_vente.slice(0, 4)) !== annee) continue;
-    const m = Number(v.date_vente.slice(5, 7)) - 1;
-    donnees[m].ca += Number(v.montant ?? 0);
-    const k = `${v.evenement_id}|${m}`;
-    benefLieuMois.set(k, (benefLieuMois.get(k) ?? 0) + Number(v.montant ?? 0));
-    const t = totalEvenement.get(v.evenement_id ?? "") ?? { ca: 0, dep: 0, mois: null };
-    t.ca += Number(v.montant ?? 0);
-    totalEvenement.set(v.evenement_id ?? "", t);
-  }
-  for (const d of depenses ?? []) {
-    if (!d.date_depense || Number(d.date_depense.slice(0, 4)) !== annee) continue;
-    const m = Number(d.date_depense.slice(5, 7)) - 1;
-    donnees[m].depenses += Number(d.montant ?? 0);
-    if (d.categorie === "remuneration_interessement") donnees[m].remunerations += Number(d.montant ?? 0);
-    const k = `${d.evenement_id}|${m}`;
-    benefLieuMois.set(k, (benefLieuMois.get(k) ?? 0) - Number(d.montant ?? 0));
-    const t = totalEvenement.get(d.evenement_id ?? "") ?? { ca: 0, dep: 0, mois: null };
-    t.dep += Number(d.montant ?? 0);
-    totalEvenement.set(d.evenement_id ?? "", t);
-  }
-  // Dîme (règle du classeur) :
-  // - point de vente : (CA − dépenses) de chaque mois × taux ;
-  // - événement : dîme totale de l'événement, comptée au mois de sa fin.
-  for (const [k, benef] of benefLieuMois) {
-    const [id, m] = k.split("|");
-    if (!lieux.get(id)?.est_point_de_vente) continue;
-    donnees[Number(m)].dime += benef * Number(lieux.get(id)?.taux_dime ?? 0.1);
-  }
-  for (const [id, t] of totalEvenement) {
-    const lieu = lieux.get(id);
-    if (!lieu || lieu.est_point_de_vente) continue;
-    const fin = lieu.date_fin ?? "";
-    const mois = fin.startsWith(String(annee)) ? Number(fin.slice(5, 7)) - 1 : null;
-    if (mois === null) continue;
-    donnees[mois].dime += (t.ca - t.dep) * Number(lieu.taux_dime ?? 0.1);
-  }
-  // Primes rattachées au mois de fin de l'événement (les primes du point de vente, annuelles, ne sont pas rattachées à un mois).
-  for (const pr of primes ?? []) {
-    if (pr.annee === annee && pr.mois) donnees[pr.mois - 1].primes += Number(pr.prime);
-  }
-  // Charges : montant réel du mois si saisi, sinon montant habituel (fixes uniquement).
-  const reelles = new Map((chargesReelles ?? []).map((r) => [`${r.charge_id}|${r.annee}|${r.mois}`, Number(r.montant_reel)]));
-  for (const c of charges ?? []) {
-    for (let m = 1; m <= 12; m++) {
-      const reel = reelles.get(`${c.id}|${annee}|${m}`);
-      const montant = reel ?? (c.nature === "fixe" ? Number(c.montant_habituel ?? 0) : 0);
-      if (c.nature === "fixe") donnees[m - 1].chargesFixes += montant;
-      else donnees[m - 1].chargesNonFixes += montant;
-    }
-  }
-
-  const lignes = calculerPaie(donnees, options);
-  const totalParts = (collabs ?? []).reduce((s, c) => s + Number(c.parts), 0);
-
-  // Montant dû par collaborateur (cumul des parts) et versements.
-  const dus = new Map<string, number>();
-  for (const l of lignes) {
-    for (const c of collabs ?? []) {
-      dus.set(c.id, (dus.get(c.id) ?? 0) + partCollaborateur(l.enveloppe, Number(c.parts), totalParts));
-    }
-  }
-  const verses = new Map<string, number>();
-  for (const v of versements ?? []) {
-    if (v.annee === annee) verses.set(v.collaborateur_id, (verses.get(v.collaborateur_id) ?? 0) + Number(v.montant));
-  }
-
+  const totalEnveloppe = lignes.reduce((s, l) => s + l.enveloppe, 0);
   const actifs = lignes.filter((l) => l.actif);
 
   return (
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Paie et épargne {annee}</h1>
-      <p className="note">Calcul selon les règles R15 à R18. Les versements et les charges réelles mensuelles sont à importer depuis le classeur.</p>
+      <p className="total">Enveloppe distribuable : {francs(totalEnveloppe)}</p>
+      <p className="note">Calcul selon les règles R15 à R18, comme le classeur.</p>
 
       <section className="carte-vente">
-        <p className="entete"><strong>Mois</strong></p>
+        <p className="entete"><strong>Calcul mensuel</strong></p>
         <div style={{ overflowX: "auto" }}>
           <table className="tableau">
             <thead>
@@ -138,7 +56,7 @@ async function ContenuPaie() {
             <tbody>
               {lignes.map((l) => (
                 <tr key={l.mois}>
-                  <td>{NOMS_MOIS[l.mois - 1]}</td>
+                  <td>{NOMS_MOIS_COURT[l.mois - 1]}</td>
                   <td className="nombre">{l.actif ? francs(l.resultatExploitation) : "—"}</td>
                   <td className="nombre">{l.actif ? francs(l.resultatAvantImpot) : "—"}</td>
                   <td className="nombre">{l.actif ? francs(l.impot) : "—"}</td>
@@ -151,21 +69,80 @@ async function ContenuPaie() {
             </tbody>
           </table>
         </div>
-        <p className="total">Enveloppe distribuable : {francs(actifs.reduce((s, l) => s + l.enveloppe, 0))}</p>
+        <p className="note">Mois actifs : {actifs.length}. Les mois sans chiffre d&apos;affaires ni dépense ne sont pas pris en compte.</p>
       </section>
 
       <section className="carte-vente">
-        <p className="entete"><strong>Par collaborateur</strong></p>
-        {(collabs ?? []).map((c) => {
-          const du = dus.get(c.id) ?? 0;
-          const verse = verses.get(c.id) ?? 0;
+        <p className="entete"><strong>Fiche de paie du mois</strong></p>
+        <form method="get" className="formulaire">
+          <select name="mois" defaultValue={String(moisFiche)}>
+            {NOMS_NON_VIDES(lignes).map((m) => <option key={m} value={m}>{NOMS_MOIS[m - 1]}</option>)}
+          </select>
+          <button type="submit" className="secondaire">Afficher</button>
+        </form>
+        <p className="note">Enveloppe du mois : <strong>{francs(enveloppeMois)}</strong></p>
+        <div style={{ overflowX: "auto" }}>
+          <table className="tableau">
+            <thead>
+              <tr><th>Collaborateur</th><th className="nombre">Parts</th><th className="nombre">Montant dû</th><th className="nombre">Versé pour ce mois</th><th className="nombre">Reste à verser</th></tr>
+            </thead>
+            <tbody>
+              {collaborateurs.map((c) => {
+                const du = duParMois.get(c.id)?.[moisFiche - 1] ?? 0;
+                const verse = versements.filter((v) => v.collaborateur_id === c.id && v.mois === moisFiche).reduce((s, v) => s + v.montant, 0);
+                return (
+                  <tr key={c.id}>
+                    <td>{c.nom}</td>
+                    <td className="nombre">{c.parts}</td>
+                    <td className="nombre">{francs(du)}</td>
+                    <td className="nombre">{francs(verse)}</td>
+                    <td className="nombre">{francs(du - verse)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="carte-vente">
+        <p className="entete"><strong>Reste à verser (cumul de l&apos;année)</strong></p>
+        {collaborateurs.map((c) => {
+          const du = (duParMois.get(c.id) ?? []).reduce((s, v) => s + v, 0);
+          const verse = versements.filter((v) => v.collaborateur_id === c.id).reduce((s, v) => s + v.montant, 0);
           return (
             <p key={c.id} className="note">
-              {c.nom} ({c.parts} part{Number(c.parts) > 1 ? "s" : ""}) : dû {francs(du)} · versé {francs(verse)} · <strong>reste à verser {francs(du - verse)}</strong>
+              {c.nom} : dû {francs(du)} · versé {francs(verse)} · <strong>reste {francs(du - verse)}</strong>
+            </p>
+          );
+        })}
+      </section>
+
+      {estGerant && (
+        <section className="carte-vente">
+          <p className="entete"><strong>Enregistrer un versement</strong></p>
+          <FormulaireVersement collaborateurs={collaborateurs.map((c) => ({ id: c.id, nom: c.nom }))} moisParDefaut={moisFiche} />
+        </section>
+      )}
+
+      <section className="carte-vente">
+        <p className="entete"><strong>Journal des versements</strong></p>
+        {versements.length === 0 && <p className="note">Aucun versement enregistré.</p>}
+        {versements.map((v) => {
+          const nom = collaborateurs.find((c) => c.id === v.collaborateur_id)?.nom ?? "Collaborateur";
+          return (
+            <p key={v.id} className="note">
+              {v.date_versement} · {nom} · mois concerné {NOMS_MOIS[v.mois - 1]} · {francs(v.montant)}
             </p>
           );
         })}
       </section>
     </main>
   );
+}
+
+// Mois proposés dans la fiche : tous les mois jusqu'au dernier mois actif.
+function NOMS_NON_VIDES(lignes: { mois: number; actif: boolean }[]) {
+  const dernier = Math.max(1, ...lignes.filter((l) => l.actif).map((l) => l.mois));
+  return Array.from({ length: dernier }, (_, i) => i + 1);
 }
