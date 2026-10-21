@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { EnregistrerSW } from "@/components/EnregistrerSW";
+import { CurseurDefilement } from "@/components/CurseurDefilement";
 
 export const metadata: Metadata = {
   title: "APIG-PHARMA",
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <EnregistrerSW />
         {children}
+        <CurseurDefilement />
       </body>
     </html>
   );

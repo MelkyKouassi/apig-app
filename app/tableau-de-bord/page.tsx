@@ -170,7 +170,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
         <fieldset>
           <legend>Produits exclus du CA hors exclusions (max {MAX_EXCLUS})</legend>
           {produitsChoisis.map((p) => (
-            <label key={p.id}>
+            <label key={p.id} className="case">
               <input type="checkbox" name="exclus" value={p.id} defaultChecked={exclus.has(p.id)} /> {p.nom}
             </label>
           ))}

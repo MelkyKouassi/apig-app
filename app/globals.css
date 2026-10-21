@@ -114,3 +114,20 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 .modifier-ligne { display: grid; grid-template-columns: 1fr 72px auto; gap: 6px; align-items: center; }
 .modifier-ligne select, .modifier-ligne input { padding: 8px; border: 1px solid var(--bordure); border-radius: 8px; background: var(--fond); color: var(--texte); font: inherit; min-width: 0; }
 .modifier-ligne .erreur, .modifier-ligne .succes { grid-column: 1 / -1; margin: 0; }
+
+/* Cases à cocher : taille naturelle, libellé à côté (ne pas étirer sur toute la ligne). */
+.formulaire input[type="checkbox"] { width: auto; margin: 0; }
+.formulaire label.case { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+
+/* Curseur de défilement fixe en bas de l'écran. */
+.curseur-espace { height: 72px; }
+.curseur-defilement {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  background: var(--fond); border-top: 1px solid var(--bordure);
+}
+.curseur-defilement button {
+  width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--bordure);
+  background: var(--fond); color: var(--texte); font-size: 1.1rem; cursor: pointer; flex: none;
+}
+.curseur-defilement input[type="range"] { flex: 1; width: auto; margin: 0; }
