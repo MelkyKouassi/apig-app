@@ -83,6 +83,9 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
         <p className="note">Enveloppe du mois : <strong>{francs(enveloppeMois)}</strong></p>
         <p className="entete"><strong>Bulletins du mois</strong></p>
         <div className="formulaire">
+          <Link href={`/paie/bulletins?mois=${moisFiche}`} className="lien">
+            Imprimer tous les bulletins du mois
+          </Link>
           {collaborateurs.map((c) => (
             <Link key={c.id} href={`/paie/bulletin/${c.id}?mois=${moisFiche}`} className="secondaire lien">
               Bulletin de {c.nom}
