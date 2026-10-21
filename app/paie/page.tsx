@@ -26,7 +26,7 @@ async function ContenuPaie() {
     supabase.from("parametres").select("*").limit(1).maybeSingle(),
     supabase.from("ventes").select("date_vente, montant, evenement_id").eq("statut", "actif"),
     supabase.from("depenses").select("date_depense, montant, categorie, evenement_id").eq("statut", "actif"),
-    supabase.from("evenements").select("id, est_point_de_vente, taux_dime"),
+    supabase.from("evenements").select("id, est_point_de_vente, taux_dime, date_fin"),
     supabase.from("v_primes").select("annee, mois, prime"),
     supabase.from("charges").select("id, nature, montant_habituel").eq("actif", true),
     supabase.from("charges_mensuelles").select("charge_id, annee, mois, montant_reel"),
@@ -50,7 +50,8 @@ async function ContenuPaie() {
 
   const lieux = new Map((evts ?? []).map((e) => [e.id, e]));
   const donnees: MoisDonnees[] = Array.from({ length: 12 }, (_, i) => ({ ca: 0, depenses: 0, remunerations: 0, primes: 0, dime: 0, chargesFixes: 0, chargesNonFixes: 0 }));
-  const benefLieuMois = new Map<string, number>(); // clé lieu|mois
+  const benefLieuMois = new Map<string, number>(); // clé lieu|mois (points de vente)
+  const totalEvenement = new Map<string, { ca: number; dep: number; mois: number | null }>(); // événements : total et mois de fin
 
   for (const v of ventes ?? []) {
     if (!v.date_vente || Number(v.date_vente.slice(0, 4)) !== annee) continue;
@@ -58,6 +59,9 @@ async function ContenuPaie() {
     donnees[m].ca += Number(v.montant ?? 0);
     const k = `${v.evenement_id}|${m}`;
     benefLieuMois.set(k, (benefLieuMois.get(k) ?? 0) + Number(v.montant ?? 0));
+    const t = totalEvenement.get(v.evenement_id ?? "") ?? { ca: 0, dep: 0, mois: null };
+    t.ca += Number(v.montant ?? 0);
+    totalEvenement.set(v.evenement_id ?? "", t);
   }
   for (const d of depenses ?? []) {
     if (!d.date_depense || Number(d.date_depense.slice(0, 4)) !== annee) continue;
@@ -66,11 +70,25 @@ async function ContenuPaie() {
     if (d.categorie === "remuneration_interessement") donnees[m].remunerations += Number(d.montant ?? 0);
     const k = `${d.evenement_id}|${m}`;
     benefLieuMois.set(k, (benefLieuMois.get(k) ?? 0) - Number(d.montant ?? 0));
+    const t = totalEvenement.get(d.evenement_id ?? "") ?? { ca: 0, dep: 0, mois: null };
+    t.dep += Number(d.montant ?? 0);
+    totalEvenement.set(d.evenement_id ?? "", t);
   }
-  // Dîme du mois : (CA − dépenses) du lieu × taux de dîme du lieu.
+  // Dîme (règle du classeur) :
+  // - point de vente : (CA − dépenses) de chaque mois × taux ;
+  // - événement : dîme totale de l'événement, comptée au mois de sa fin.
   for (const [k, benef] of benefLieuMois) {
     const [id, m] = k.split("|");
+    if (!lieux.get(id)?.est_point_de_vente) continue;
     donnees[Number(m)].dime += benef * Number(lieux.get(id)?.taux_dime ?? 0.1);
+  }
+  for (const [id, t] of totalEvenement) {
+    const lieu = lieux.get(id);
+    if (!lieu || lieu.est_point_de_vente) continue;
+    const fin = lieu.date_fin ?? "";
+    const mois = fin.startsWith(String(annee)) ? Number(fin.slice(5, 7)) - 1 : null;
+    if (mois === null) continue;
+    donnees[mois].dime += (t.ca - t.dep) * Number(lieu.taux_dime ?? 0.1);
   }
   // Primes rattachées au mois de fin de l'événement (les primes du point de vente, annuelles, ne sont pas rattachées à un mois).
   for (const pr of primes ?? []) {
