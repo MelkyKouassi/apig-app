@@ -3,10 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireReglement } from "./FormulaireReglement";
+import { FormulaireReglementDepot } from "@/app/depot-vente/FormulaireReglementDepot";
 
-type VenteCredit = { tiers_id: string; montant: number | null; date_vente: string };
-type ReglementCredit = { tiers_id: string; montant: number | null; date_reglement: string };
-type Client = { id: string; nom: string; telephone: string | null };
+type Client = { id: string; nom: string; telephone: string | null; type: string | null };
 
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
 
@@ -33,84 +32,130 @@ async function ContenuCreances() {
 
   const { data: profil } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (profil?.role !== "gerant" && profil?.role !== "comptable") redirect("/");
+  const estGerant = profil?.role === "gerant";
 
-  const [{ data: parametres }, { data: ventes }, { data: reglements }, { data: clients }] = await Promise.all([
+  const [{ data: parametres }, { data: ventes }, { data: reglements }, { data: depots }, { data: reglementsDepot }, { data: tiers }, { data: produits }] = await Promise.all([
     supabase.from("parametres").select("delai_credit_jours").limit(1).maybeSingle(),
-    supabase.from("ventes").select("tiers_id, montant, date_vente").eq("mode_paiement", "credit").eq("statut", "actif"),
+    supabase.from("ventes").select("tiers_id, montant, date_vente, produit_id, quantite").eq("mode_paiement", "credit").eq("statut", "actif"),
     supabase.from("reglements").select("tiers_id, montant, date_reglement").eq("origine", "credit").eq("statut", "actif"),
-    supabase.from("tiers").select("id, nom, telephone"),
+    supabase.from("v_depots_lignes").select("tiers_id, montant_du, date_remise"),
+    supabase.from("reglements").select("tiers_id, montant, date_reglement").eq("origine", "depot").eq("statut", "actif"),
+    supabase.from("tiers").select("id, nom, telephone, type"),
+    supabase.from("produits").select("id, nom"),
   ]);
 
   const delai = parametres?.delai_credit_jours ?? 30;
-  const aujourdhuiStr = new Date().toISOString().slice(0, 10);
-  const aujourdhui = new Date(aujourdhuiStr + "T00:00:00Z").getTime();
+  const aujourdhui = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").getTime();
+  const nomsClients = new Map(((tiers ?? []) as Client[]).map((c) => [c.id, c]));
+  const nomsProduits = new Map((produits ?? []).map((p) => [p.id as string, p.nom as string]));
 
-  const parClient = new Map<string, { du: number; recu: number; plusAncienne: string | null; dernierReglement: string | null }>();
-  const obtenir = (id: string) => {
-    if (!parClient.has(id)) parClient.set(id, { du: 0, recu: 0, plusAncienne: null, dernierReglement: null });
+  // ---- Clients à crédit (R12, R13) ----
+  type Cumul = { du: number; recu: number; plusAncienne: string | null; dernierReglement: string | null; produits: Map<string, number> };
+  const nouveauCumul = (): Cumul => ({ du: 0, recu: 0, plusAncienne: null, dernierReglement: null, produits: new Map() });
+  const parClient = new Map<string, Cumul>();
+  const cumulClient = (id: string) => {
+    if (!parClient.has(id)) parClient.set(id, nouveauCumul());
     return parClient.get(id)!;
   };
-
-  for (const v of (ventes ?? []) as VenteCredit[]) {
-    const c = obtenir(v.tiers_id);
+  for (const v of (ventes ?? []) as { tiers_id: string; montant: number | null; date_vente: string; produit_id: string; quantite: number }[]) {
+    const c = cumulClient(v.tiers_id);
     c.du += Number(v.montant ?? 0);
     if (!c.plusAncienne || v.date_vente < c.plusAncienne) c.plusAncienne = v.date_vente;
+    const nomProduit = nomsProduits.get(v.produit_id) ?? "Produit";
+    c.produits.set(nomProduit, (c.produits.get(nomProduit) ?? 0) + Number(v.quantite ?? 0));
   }
-  for (const r of (reglements ?? []) as ReglementCredit[]) {
-    const c = obtenir(r.tiers_id);
+  for (const r of (reglements ?? []) as { tiers_id: string; montant: number | null; date_reglement: string }[]) {
+    const c = cumulClient(r.tiers_id);
     c.recu += Number(r.montant ?? 0);
     if (!c.dernierReglement || r.date_reglement > c.dernierReglement) c.dernierReglement = r.date_reglement;
   }
-
-  const nomsClients = new Map(((clients ?? []) as Client[]).map((c) => [c.id, c]));
-
-  const lignes = [...parClient.entries()]
+  const lignesClients = [...parClient.entries()]
     .map(([id, c]) => {
       const reste = c.du - c.recu;
       const retard = c.plusAncienne
         ? Math.floor((aujourdhui - new Date(c.plusAncienne + "T00:00:00Z").getTime()) / 86400000) - delai
         : -999;
-      return {
-        id,
-        client: nomsClients.get(id),
-        du: c.du,
-        recu: c.recu,
-        reste,
-        pct: c.du > 0 ? Math.min(100, (c.recu / c.du) * 100) : 0,
-        plusAncienne: c.plusAncienne,
-        dernierReglement: c.dernierReglement,
-        retard,
-      };
+      return { id, c, reste, retard, pct: c.du > 0 ? Math.min(100, (c.recu / c.du) * 100) : 0 };
     })
     .filter((l) => l.reste > 1)
     .sort((a, b) => b.retard - a.retard);
+  const totalClients = lignesClients.reduce((s, l) => s + l.reste, 0);
 
-  const totalReste = lignes.reduce((s, l) => s + l.reste, 0);
+  // ---- Dépôt-vente : reste par destinataire (R12) ----
+  const parDepot = new Map<string, Cumul>();
+  const cumulDepot = (id: string) => {
+    if (!parDepot.has(id)) parDepot.set(id, nouveauCumul());
+    return parDepot.get(id)!;
+  };
+  for (const d of (depots ?? []) as { tiers_id: string | null; montant_du: number | null; date_remise: string }[]) {
+    if (!d.tiers_id) continue;
+    const c = cumulDepot(d.tiers_id);
+    c.du += Number(d.montant_du ?? 0);
+    if (!c.plusAncienne || d.date_remise < c.plusAncienne) c.plusAncienne = d.date_remise;
+  }
+  for (const r of (reglementsDepot ?? []) as { tiers_id: string; montant: number | null; date_reglement: string }[]) {
+    const c = cumulDepot(r.tiers_id);
+    c.recu += Number(r.montant ?? 0);
+    if (!c.dernierReglement || r.date_reglement > c.dernierReglement) c.dernierReglement = r.date_reglement;
+  }
+  const lignesDepots = [...parDepot.entries()]
+    .map(([id, c]) => ({ id, c, reste: c.du - c.recu, pct: c.du > 0 ? Math.min(100, (c.recu / c.du) * 100) : 0 }))
+    .filter((l) => l.reste > 1)
+    .sort((a, b) => b.reste - a.reste);
+  const totalDepots = lignesDepots.reduce((s, l) => s + l.reste, 0);
 
   return (
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Créances</h1>
-      <p className="total">Reste à recouvrer : {francs(totalReste)} ({lignes.length} client(s))</p>
-      {lignes.length === 0 && <p className="note">Aucun client ne doit encore de l&apos;argent.</p>}
+      <p className="total">Reste à recouvrer : {francs(totalClients + totalDepots)} ({lignesClients.length + lignesDepots.length} créancier(s))</p>
+      <p className="note">Clients à crédit : {francs(totalClients)} · Dépôt-vente : {francs(totalDepots)}</p>
 
-      {lignes.map((l) => {
+      <h2>Clients à crédit</h2>
+      {lignesClients.length === 0 && <p className="note">Aucun client ne doit encore de l&apos;argent.</p>}
+      {lignesClients.map((l) => {
+        const client = nomsClients.get(l.id);
         const a = alerte(l.retard);
         return (
           <section key={l.id} className="carte-vente">
             <p className="entete">
-              <strong>{l.client?.nom ?? "Client"}</strong>
+              <strong>{client?.nom ?? "Client"}</strong>
               <span className={`badge ${a.classe}`}>{a.libelle}</span>
             </p>
-            {l.client?.telephone && (
-              <p className="note"><a href={`tel:${l.client.telephone}`} className="lien-tel">{l.client.telephone}</a></p>
+            {client?.telephone && (
+              <p className="note"><a href={`tel:${client.telephone}`} className="lien-tel">{client.telephone}</a></p>
             )}
-            <p>Reste à payer : <strong>{francs(l.reste)}</strong> sur {francs(l.du)} ({Math.round(l.pct)} % réglé)</p>
+            <p>Reste à payer : <strong>{francs(l.reste)}</strong> sur {francs(l.c.du)} ({Math.round(l.pct)} % réglé)</p>
             <p className="note">
-              Plus ancienne vente à crédit : {l.plusAncienne} · Dernier règlement : {l.dernierReglement ?? "aucun"}
+              Plus ancienne vente à crédit : {l.c.plusAncienne} · Dernier règlement : {l.c.dernierReglement ?? "aucun"}
               {l.retard > -999 && ` · Retard : ${Math.max(0, l.retard)} j`}
             </p>
+            <p className="note">
+              Produits à crédit : {[...l.c.produits.entries()].map(([nom, q]) => `${nom} (${q})`).join(", ") || "—"}
+            </p>
             <FormulaireReglement tiersId={l.id} reste={l.reste} />
+          </section>
+        );
+      })}
+
+      <h2>Dépôt-vente</h2>
+      {lignesDepots.length === 0 && <p className="note">Aucun destinataire de dépôt-vente ne doit encore de l&apos;argent.</p>}
+      {lignesDepots.map((l) => {
+        const destinataire = nomsClients.get(l.id);
+        return (
+          <section key={l.id} className="carte-vente">
+            <p className="entete">
+              <strong>{destinataire?.nom ?? "Destinataire"}</strong>
+              <span className="badge attention">{destinataire?.type ?? "Dépôt"}</span>
+            </p>
+            {destinataire?.telephone && (
+              <p className="note"><a href={`tel:${destinataire.telephone}`} className="lien-tel">{destinataire.telephone}</a></p>
+            )}
+            <p>Reste à payer : <strong>{francs(l.reste)}</strong> sur {francs(l.c.du)} ({Math.round(l.pct)} % réglé)</p>
+            <p className="note">
+              Plus ancien dépôt : {l.c.plusAncienne} · Dernier règlement : {l.c.dernierReglement ?? "aucun"}
+            </p>
+            {estGerant && <FormulaireReglementDepot tiersId={l.id} reste={l.reste} />}
           </section>
         );
       })}
