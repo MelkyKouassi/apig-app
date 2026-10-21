@@ -60,6 +60,18 @@ async function ContenuMesVentes() {
 
   const lignes = (data ?? []) as unknown as LigneVente[];
 
+  // Mes primes : la fonction ne renvoie que les primes du commercial connecté.
+  const { data: mesPrimesData } = fiche ? await supabase.rpc("fn_mes_primes") : { data: [] };
+  const mesPrimes = (mesPrimesData ?? []) as {
+    evenement_nom: string;
+    annee: number;
+    mois: number | null;
+    total_vendu: number;
+    taux: number;
+    prime: number;
+  }[];
+  const totalPrimes = mesPrimes.reduce((s, p) => s + Number(p.prime), 0);
+
   const paniers = new Map<string, LigneVente[]>();
   for (const l of lignes) {
     const liste = paniers.get(l.panier_id) ?? [];
@@ -71,6 +83,20 @@ async function ContenuMesVentes() {
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Mes ventes du jour</h1>
+
+      {fiche && (
+        <section className="carte-vente">
+          <p className="entete"><strong>Mes primes</strong></p>
+          {mesPrimes.length === 0 && <p className="note">Aucune prime pour le moment.</p>}
+          {mesPrimes.map((p, i) => (
+            <p key={i} className="note">
+              {p.evenement_nom} · {p.mois ? `${String(p.mois).padStart(2, "0")}/${p.annee}` : p.annee} ·
+              vendu {francs(Number(p.total_vendu))} · taux {Math.round(Number(p.taux) * 1000) / 10} % · <strong>prime {francs(Number(p.prime))}</strong>
+            </p>
+          ))}
+          {mesPrimes.length > 0 && <p className="total">Total de mes primes : {francs(totalPrimes)}</p>}
+        </section>
+      )}
 
       {!fiche && (
         <p className="erreur">Votre compte n&apos;est pas encore relié à une fiche commercial. Contactez le gérant.</p>
