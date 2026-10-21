@@ -35,11 +35,12 @@ const REFERENCE_2026 = {
 };
 
 const MAX_EXCLUS = 8;
-type Params = { debutA?: string; finA?: string; debutB?: string; finB?: string; exclus?: string | string[]; portee?: string };
+type Params = { debutA?: string; finA?: string; debutB?: string; finB?: string; exclus?: string | string[]; portee?: string; lieu?: string };
 const PORTEES: { valeur: Portee; libelle: string }[] = [
   { valeur: "total", libelle: "Total" },
   { valeur: "evenements", libelle: "Événements" },
   { valeur: "pdv", libelle: "Point de vente" },
+  { valeur: "lieu", libelle: "Un lieu" },
 ];
 
 type LigneComparaison = {
@@ -103,6 +104,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
   const exclusBruts = Array.isArray(sp.exclus) ? sp.exclus : sp.exclus ? [sp.exclus] : [];
   const exclus = new Set(exclusBruts.slice(0, MAX_EXCLUS));
   const portee: Portee = PORTEES.some((p) => p.valeur === sp.portee) ? (sp.portee as Portee) : "total";
+  const lieuChoisi = sp.lieu ?? "";
 
   const [
     { data: ventes }, { data: depenses }, { data: evenements }, { data: primes },
@@ -133,8 +135,9 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
   const A = calculerResultats(debutA, finA, ventesI, depensesI, evts, primesI);
   const B = calculerResultats(debutB, finB, ventesI, depensesI, evts, primesI);
   const hors = calculerHorsProduits(debutA, finA, ventesI, depensesI, exclus);
-  const comparA = calculerIndicateurs(debutA, finA, portee, ventesI, depensesI, evts, primesI);
-  const comparB = calculerIndicateurs(debutB, finB, portee, ventesI, depensesI, evts, primesI);
+  const comparA = calculerIndicateurs(debutA, finA, portee, ventesI, depensesI, evts, primesI, lieuChoisi);
+  const comparB = calculerIndicateurs(debutB, finB, portee, ventesI, depensesI, evts, primesI, lieuChoisi);
+  const nomLieuChoisi = evts.find((e) => e.id === lieuChoisi)?.nom;
   const produitsA = analyserProduits(debutA, finA, ventesI, (productions ?? []) as ProductionI[], nomsProduits);
 
   // Créances : état à aujourd'hui, par tiers (restes ≤ 1 F ignorés).
@@ -210,6 +213,10 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
           <select name="portee" defaultValue={portee}>
             {PORTEES.map((p) => <option key={p.valeur} value={p.valeur}>{p.libelle}</option>)}
           </select>
+          <select name="lieu" defaultValue={lieuChoisi}>
+            <option value="">— Lieu (si « Un lieu ») —</option>
+            {evts.map((e) => <option key={e.id} value={e.id}>{e.nom}</option>)}
+          </select>
         </fieldset>
         <fieldset>
           <legend>Produits exclus du CA hors exclusions (max {MAX_EXCLUS})</legend>
@@ -233,7 +240,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
       </section>
 
       <section className="carte-vente">
-        <p className="entete"><strong>Comparaison dynamique : {PORTEES.find((p) => p.valeur === portee)?.libelle}</strong></p>
+        <p className="entete"><strong>Comparaison dynamique : {portee === "lieu" ? nomLieuChoisi ?? "lieu non choisi" : PORTEES.find((p) => p.valeur === portee)?.libelle}</strong></p>
         <div style={{ overflowX: "auto" }}>
           <table className="tableau">
             <thead>

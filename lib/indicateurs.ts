@@ -156,7 +156,7 @@ export function analyserProduits(
 }
 
 // Comparaison dynamique : 16 indicateurs, filtrés par portée (Total, Événements, Point de vente).
-export type Portee = "total" | "evenements" | "pdv";
+export type Portee = "total" | "evenements" | "pdv" | "lieu";
 export type VenteComplete = VenteProduitI & { mode_paiement: string };
 
 export type IndicateursPeriode = {
@@ -188,12 +188,14 @@ export function calculerIndicateurs(
   depenses: DepenseI[],
   evenements: EvenementI[],
   primes: PrimeI[],
+  lieuId?: string,
 ): { indicateurs: IndicateursPeriode; lieux: DetailLieu[] } {
   const dansPeriode = (d: string) => d >= debut && d <= fin;
   const lieux = new Map(evenements.map((e) => [e.id, e]));
   const lieuRetenu = (id: string) => {
     const l = lieux.get(id);
     if (!l) return false;
+    if (portee === "lieu") return id === lieuId;
     if (portee === "pdv") return l.est_point_de_vente;
     if (portee === "evenements") return !l.est_point_de_vente;
     return true;
