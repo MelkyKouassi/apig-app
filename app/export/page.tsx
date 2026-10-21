@@ -11,6 +11,8 @@ const LIBELLES: Record<Jeu, { titre: string; detail: string }> = {
   stock: { titre: "Stock et production", detail: "Stock restant, taux d'écoulement et écart par événement." },
   primes: { titre: "Primes", detail: "Primes commerciales par année, événement et commercial." },
   evenements: { titre: "Résultats par événement", detail: "CA, dépenses, bénéfice, dîme et gain par personne." },
+  creances: { titre: "Créances", detail: "Clients à crédit et dépôt-vente : reste à payer, retard et action suggérée." },
+  tableau: { titre: "Tableau de bord", detail: "Indicateurs principaux de 2026 et 2025 (total, sans filtre)." },
   paie: { titre: "Paie et épargne", detail: "Calcul mensuel, dû par collaborateur et versements. Gérant seul." },
   sauvegarde: { titre: "Sauvegarde complète", detail: "Toutes les tables de la base, à conserver chaque semaine. Gérant seul." },
 };
