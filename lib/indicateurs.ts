@@ -90,3 +90,67 @@ export function calculerResultats(
   r.beneficeApresPrimes = r.benefice - r.primes;
   return r;
 }
+
+// Hors produits exclus (cahier, M11) : CA sans les ventes des produits exclus.
+// Les dépenses restent intégralement prises en compte.
+export type VenteProduitI = VenteI & { produit_id: string; quantite: number; prix_unitaire: number | null };
+
+export function calculerHorsProduits(
+  debut: string,
+  fin: string,
+  ventes: VenteProduitI[],
+  depenses: DepenseI[],
+  exclus: Set<string>,
+) {
+  const dansPeriode = (d: string) => d >= debut && d <= fin;
+  let caTotal = 0;
+  let caHors = 0;
+  for (const v of ventes) {
+    if (!dansPeriode(v.date_vente)) continue;
+    const m = Number(v.montant ?? 0);
+    caTotal += m;
+    if (!exclus.has(v.produit_id)) caHors += m;
+  }
+  const dep = depenses
+    .filter((d) => dansPeriode(d.date_depense))
+    .reduce((s, d) => s + Number(d.montant ?? 0), 0);
+  return { caTotal, caHors, depenses: dep, beneficeHors: caHors - dep };
+}
+
+// Analyse par produit sur une période : unités, CA, prix manquants et production.
+// Production : comptée pour les événements dont la première vente tombe dans la période.
+export type ProductionI = { evenement_id: string; produit_id: string; quantite_produite: number };
+
+export function analyserProduits(
+  debut: string,
+  fin: string,
+  ventes: VenteProduitI[],
+  productions: ProductionI[],
+  nomsProduits: Map<string, string>,
+) {
+  const dansPeriode = (d: string) => d >= debut && d <= fin;
+  const premiereVente = new Map<string, string>();
+  for (const v of ventes) {
+    const p = premiereVente.get(v.evenement_id);
+    if (!p || v.date_vente < p) premiereVente.set(v.evenement_id, v.date_vente);
+  }
+  const lignes = new Map<string, { nom: string; unites: number; ca: number; prixManquants: number; production: number }>();
+  const obtenir = (id: string) => {
+    if (!lignes.has(id)) lignes.set(id, { nom: nomsProduits.get(id) ?? "Produit", unites: 0, ca: 0, prixManquants: 0, production: 0 });
+    return lignes.get(id)!;
+  };
+  for (const v of ventes) {
+    if (!dansPeriode(v.date_vente)) continue;
+    const l = obtenir(v.produit_id);
+    l.unites += Number(v.quantite);
+    l.ca += Number(v.montant ?? 0);
+    if (!v.prix_unitaire || Number(v.prix_unitaire) <= 0) l.prixManquants += 1;
+  }
+  for (const p of productions) {
+    const d = premiereVente.get(p.evenement_id);
+    if (d && dansPeriode(d)) obtenir(p.produit_id).production += Number(p.quantite_produite);
+  }
+  return [...lignes.entries()]
+    .map(([id, l]) => ({ id, ...l }))
+    .sort((a, b) => a.unites - b.unites);
+}

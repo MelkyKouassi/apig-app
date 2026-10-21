@@ -2,7 +2,16 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { calculerResultats, type DepenseI, type EvenementI, type PrimeI, type VenteI } from "@/lib/indicateurs";
+import {
+  analyserProduits,
+  calculerHorsProduits,
+  calculerResultats,
+  type DepenseI,
+  type EvenementI,
+  type PrimeI,
+  type ProductionI,
+  type VenteProduitI,
+} from "@/lib/indicateurs";
 
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
 const evolution = (a: number, b: number) => {
@@ -19,9 +28,11 @@ const REFERENCE_2026 = {
   primes: 13100,
   dime: 278880,
   beneficeApresPrimes: 2775700,
+  creances: 1258278,
 };
 
-type Params = { debutA?: string; finA?: string; debutB?: string; finB?: string };
+const MAX_EXCLUS = 8;
+type Params = { debutA?: string; finA?: string; debutB?: string; finB?: string; exclus?: string | string[] };
 
 export default function PageTableauDeBord(props: PageProps<"/tableau-de-bord">) {
   return (
@@ -29,6 +40,16 @@ export default function PageTableauDeBord(props: PageProps<"/tableau-de-bord">) 
       <ContenuTableauDeBord searchParams={props.searchParams as Promise<Params>} />
     </Suspense>
   );
+}
+
+// Reste à payer par tiers : un reste inférieur ou égal à 1 F est soldé (R12) et ne réduit pas les créances.
+function resteParTiers(dus: Map<string, number>, recus: Map<string, number>) {
+  const restes = new Map<string, number>();
+  for (const [id, du] of dus) {
+    const reste = du - (recus.get(id) ?? 0);
+    if (reste > 1) restes.set(id, reste);
+  }
+  return restes;
 }
 
 async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Params> }) {
@@ -44,38 +65,67 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
   const finA = sp.finA ?? "2026-12-31";
   const debutB = sp.debutB ?? "2025-01-01";
   const finB = sp.finB ?? "2025-12-31";
+  const exclusBruts = Array.isArray(sp.exclus) ? sp.exclus : sp.exclus ? [sp.exclus] : [];
+  const exclus = new Set(exclusBruts.slice(0, MAX_EXCLUS));
 
-  const [{ data: ventes }, { data: depenses }, { data: evenements }, { data: primes }, { data: depots }, { data: reglementsDepot }, { data: creditsClients }, { data: reglementsCredit }, { data: stock }] = await Promise.all([
-    supabase.from("ventes").select("date_vente, montant, evenement_id").eq("statut", "actif"),
+  const [
+    { data: ventes }, { data: depenses }, { data: evenements }, { data: primes },
+    { data: depots }, { data: reglementsDepot }, { data: creditsClients }, { data: reglementsCredit },
+    { data: stock }, { data: productions }, { data: produits }, { data: tiers },
+  ] = await Promise.all([
+    supabase.from("ventes").select("date_vente, montant, evenement_id, produit_id, quantite, prix_unitaire, tiers_id, mode_paiement").eq("statut", "actif"),
     supabase.from("depenses").select("date_depense, montant, evenement_id").eq("statut", "actif"),
     supabase.from("evenements").select("id, nom, est_point_de_vente, taux_dime"),
     supabase.from("v_primes").select("evenement_id, annee, mois, prime"),
-    supabase.from("v_depots_lignes").select("montant_du"),
-    supabase.from("reglements").select("montant").eq("origine", "depot").eq("statut", "actif"),
-    supabase.from("ventes").select("montant").eq("mode_paiement", "credit").eq("statut", "actif"),
-    supabase.from("reglements").select("montant").eq("origine", "credit").eq("statut", "actif"),
+    supabase.from("v_depots_lignes").select("tiers_id, montant_du"),
+    supabase.from("reglements").select("tiers_id, montant").eq("origine", "depot").eq("statut", "actif"),
+    supabase.from("ventes").select("tiers_id, montant").eq("mode_paiement", "credit").eq("statut", "actif"),
+    supabase.from("reglements").select("tiers_id, montant").eq("origine", "credit").eq("statut", "actif"),
     supabase.from("v_stock").select("stock_restant"),
+    supabase.from("productions").select("evenement_id, produit_id, quantite_produite"),
+    supabase.from("produits").select("id, nom").order("nom"),
+    supabase.from("tiers").select("id, nom"),
   ]);
 
   const evts = (evenements ?? []) as EvenementI[];
-  const ventesI = (ventes ?? []) as VenteI[];
+  const ventesI = (ventes ?? []) as (VenteProduitI & { tiers_id: string | null; mode_paiement: string })[];
   const depensesI = (depenses ?? []) as DepenseI[];
   const primesI = (primes ?? []) as PrimeI[];
+  const nomsProduits = new Map((produits ?? []).map((p) => [p.id, p.nom]));
+  const nomsTiers = new Map((tiers ?? []).map((t) => [t.id, t.nom]));
 
   const A = calculerResultats(debutA, finA, ventesI, depensesI, evts, primesI);
   const B = calculerResultats(debutB, finB, ventesI, depensesI, evts, primesI);
+  const hors = calculerHorsProduits(debutA, finA, ventesI, depensesI, exclus);
+  const produitsA = analyserProduits(debutA, finA, ventesI, (productions ?? []) as ProductionI[], nomsProduits);
 
-  // Encaissements et créances : état à aujourd'hui (non filtré par période).
-  const somme = (lignes: { montant: number | null }[] | null) =>
-    (lignes ?? []).reduce((s, l) => s + Number(l.montant ?? 0), 0);
-  const creditClientsDu = somme(creditsClients);
-  const creditClientsRecu = somme(reglementsCredit);
-  const creditClientsReste = creditClientsDu - creditClientsRecu;
-  const depotDu = ((depots ?? []) as { montant_du: number | null }[]).reduce((s, l) => s + Number(l.montant_du ?? 0), 0);
-  const depotRecu = somme(reglementsDepot);
-  const depotReste = depotDu - depotRecu;
-  const creancesTotales = creditClientsReste + depotReste;
+  // Créances : état à aujourd'hui, par tiers (restes ≤ 1 F ignorés).
+  const sommeParTiers = (lignes: { tiers_id: string | null; montant?: number | null; montant_du?: number | null }[] | null, champ: "montant" | "montant_du") => {
+    const m = new Map<string, number>();
+    for (const l of lignes ?? []) {
+      if (!l.tiers_id) continue;
+      m.set(l.tiers_id, (m.get(l.tiers_id) ?? 0) + Number(l[champ] ?? 0));
+    }
+    return m;
+  };
+  const restesClients = resteParTiers(
+    sommeParTiers(creditsClients as { tiers_id: string | null; montant: number | null }[] | null, "montant"),
+    sommeParTiers(reglementsCredit as { tiers_id: string | null; montant: number | null }[] | null, "montant"),
+  );
+  const restesDepots = resteParTiers(
+    sommeParTiers(depots as { tiers_id: string | null; montant_du: number | null }[] | null, "montant_du"),
+    sommeParTiers(reglementsDepot as { tiers_id: string | null; montant: number | null }[] | null, "montant"),
+  );
+  const totalClients = [...restesClients.values()].reduce((s, v) => s + v, 0);
+  const totalDepots = [...restesDepots.values()].reduce((s, v) => s + v, 0);
+  const creancesTotales = totalClients + totalDepots;
   const stockRestant = ((stock ?? []) as { stock_restant: number }[]).reduce((s, l) => s + Number(l.stock_restant), 0);
+
+  // Top 5 des créanciers à relancer : plus grand reste en premier.
+  const top5 = [
+    ...[...restesClients].map(([id, reste]) => ({ nom: nomsTiers.get(id) ?? "Client", type: "Client à crédit", reste })),
+    ...[...restesDepots].map(([id, reste]) => ({ nom: nomsTiers.get(id) ?? "Destinataire", type: "Dépôt-vente", reste })),
+  ].sort((a, b) => b.reste - a.reste).slice(0, 5);
 
   const estReference = debutA === "2026-01-01" && finA === "2026-12-31";
   const ecarts = estReference
@@ -86,6 +136,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
         ["Primes", A.primes, REFERENCE_2026.primes],
         ["Dîme", A.dime, REFERENCE_2026.dime],
         ["Bénéfice après primes", A.beneficeApresPrimes, REFERENCE_2026.beneficeApresPrimes],
+        ["Créances totales", creancesTotales, REFERENCE_2026.creances],
       ] as const
     : null;
 
@@ -97,6 +148,8 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
     ["Bénéfice après primes", A.beneficeApresPrimes, B.beneficeApresPrimes],
     ["Dîme", A.dime, B.dime],
   ];
+
+  const produitsChoisis = (produits ?? []).map((p) => ({ id: p.id, nom: p.nom }));
 
   return (
     <main className="page-centree">
@@ -113,6 +166,14 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
           <legend>Période B (comparaison)</legend>
           <input name="debutB" type="date" defaultValue={debutB} required />
           <input name="finB" type="date" defaultValue={finB} required />
+        </fieldset>
+        <fieldset>
+          <legend>Produits exclus du CA hors exclusions (max {MAX_EXCLUS})</legend>
+          {produitsChoisis.map((p) => (
+            <label key={p.id}>
+              <input type="checkbox" name="exclus" value={p.id} defaultChecked={exclus.has(p.id)} /> {p.nom}
+            </label>
+          ))}
         </fieldset>
         <button type="submit" className="secondaire">Afficher</button>
       </form>
@@ -134,9 +195,38 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
       </section>
 
       <section className="carte-vente">
+        <p className="entete"><strong>CA et bénéfice hors produits exclus (période A)</strong></p>
+        <p className="note">CA total {francs(hors.caTotal)} · CA hors exclusions {francs(hors.caHors)} · dépenses {francs(hors.depenses)} · bénéfice hors exclusions {francs(hors.beneficeHors)}</p>
+        <p className="note">{exclus.size === 0 ? "Aucun produit exclu." : `${exclus.size} produit(s) exclu(s). Les dépenses restent intégralement prises en compte.`}</p>
+      </section>
+
+      <section className="carte-vente">
+        <p className="entete"><strong>Analyse des produits (période A)</strong></p>
+        {produitsA.length === 0 && <p className="note">Aucune vente sur la période.</p>}
+        {produitsA.map((p) => (
+          <p key={p.id} className="note">
+            {p.nom} : vendues {p.unites} · CA {francs(p.ca)} · production {p.production}
+            {p.prixManquants > 0 && <span className="erreur"> · {p.prixManquants} vente(s) sans prix</span>}
+          </p>
+        ))}
+        {produitsA.length > 0 && (
+          <>
+            <p className="entete"><strong>Top 5 des produits vendus</strong></p>
+            {[...produitsA].reverse().slice(0, 5).map((p, i) => (
+              <p key={p.id} className="note">{i + 1}. {p.nom} ({p.unites} unités)</p>
+            ))}
+          </>
+        )}
+      </section>
+
+      <section className="carte-vente">
         <p className="entete"><strong>Encaissements et créances (à aujourd&apos;hui)</strong></p>
-        <p className="note">Ventes à crédit clients : dû {francs(creditClientsDu)} · reçu {francs(creditClientsRecu)} · reste {francs(creditClientsReste)}</p>
-        <p className="note">Dépôt-vente : dû {francs(depotDu)} · reçu {francs(depotRecu)} · reste {francs(depotReste)}</p>
+        <p className="note">Clients à crédit : reste {francs(totalClients)} · Dépôt-vente : reste {francs(totalDepots)} · Total {francs(creancesTotales)}</p>
+        <p className="entete"><strong>Top 5 des créanciers à relancer</strong></p>
+        {top5.length === 0 && <p className="note">Aucun reste à recouvrer.</p>}
+        {top5.map((c, i) => (
+          <p key={i} className="note">{i + 1}. {c.nom} ({c.type}) : {francs(c.reste)}</p>
+        ))}
       </section>
 
       {ecarts && (
