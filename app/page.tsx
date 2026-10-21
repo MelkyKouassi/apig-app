@@ -1,3 +1,4 @@
+import { BandeauControles } from "@/components/BandeauControles";
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -36,6 +37,7 @@ async function ContenuAccueil() {
       {profil ? (
         <>
           <p className="sous-titre">Bonjour {profil.nom_complet}</p>
+          {(profil.role === "gerant" || profil.role === "comptable") && <BandeauControles />}
           <p>Rôle : {LIBELLES_ROLE[profil.role] ?? profil.role}</p>
           <Link href="/ventes/nouvelle" className="bouton">Nouvelle vente</Link>
           {profil.role === "gerant" && (
@@ -58,6 +60,9 @@ async function ContenuAccueil() {
           )}
           {(profil.role === "gerant" || profil.role === "comptable") && (
             <Link href="/tableau-de-bord" className="secondaire lien">Tableau de bord</Link>
+          )}
+          {(profil.role === "gerant" || profil.role === "comptable") && (
+            <Link href="/controles" className="secondaire lien">Contrôles de cohérence</Link>
           )}
         </>
       ) : (

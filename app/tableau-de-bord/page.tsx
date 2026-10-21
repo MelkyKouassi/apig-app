@@ -1,3 +1,4 @@
+import { BandeauControles } from "@/components/BandeauControles";
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -196,6 +197,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Tableau de bord</h1>
+      <BandeauControles />
 
       <form method="get" className="formulaire">
         <fieldset>
