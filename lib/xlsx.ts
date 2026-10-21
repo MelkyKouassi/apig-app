@@ -125,9 +125,7 @@ function cellule(valeur: unknown, ref: string, style: number): string {
   const s = style ? ` s="${style}"` : "";
   if (typeof valeur === "number" && Number.isFinite(valeur)) return `<c r="${ref}"${s}><v>${valeur}</v></c>`;
   if (typeof valeur === "boolean") return `<c r="${ref}" t="b"${s}><v>${valeur ? 1 : 0}</v></c>`;
-  // Dates AAAA-MM-JJ lues comme jour/mois/année (cahier, section 8)
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(valeur));
-  const texte = echappe(iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : String(valeur));
+  const texte = echappe(String(valeur));
   return `<c r="${ref}" t="inlineStr"${s}><is><t xml:space="preserve">${texte}</t></is></c>`;
 }
 

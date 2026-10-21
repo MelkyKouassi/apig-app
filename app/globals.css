@@ -156,12 +156,10 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 /* Navigation commune et sommaires de sections */
 .barre-nav { display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; padding: 8px 12px; border-bottom: 1px solid var(--bordure); background: var(--fond); position: sticky; top: 0; z-index: 20; }
 .barre-lien, .sommaire a { color: var(--accent); text-decoration: none; padding: 6px 10px; border: 1px solid var(--bordure); border-radius: 999px; font-size: 0.9rem; flex: 0 0 auto; }
-.sommaire { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
 
-/* Sommaire des sections : liens d'ancre collés en haut au défilement */
-.sommaire { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; overflow-x: auto; padding: 8px 0; margin: 8px 0 12px; background: var(--surface); white-space: nowrap; }
-.sommaire a { padding: 6px 12px; border: 1px solid var(--bordure); border-radius: 999px; color: var(--accent); text-decoration: none; font-size: 0.9rem; }
-[id] { scroll-margin-top: 64px; }
+/* Sommaire des sections : défile avec la page, sous la barre de navigation collée en haut */
+.sommaire { display: flex; gap: 8px; overflow-x: auto; white-space: nowrap; padding: 8px 0; margin: 8px 0 12px; }
+[id] { scroll-margin-top: 72px; }
 
 /* Mise en forme conditionnelle des montants et écarts */
 .negatif { color: var(--erreur); font-weight: 600; }
