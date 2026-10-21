@@ -154,3 +154,122 @@ export function analyserProduits(
     .map(([id, l]) => ({ id, ...l }))
     .sort((a, b) => a.unites - b.unites);
 }
+
+// Comparaison dynamique : 16 indicateurs, filtrés par portée (Total, Événements, Point de vente).
+export type Portee = "total" | "evenements" | "pdv";
+export type VenteComplete = VenteProduitI & { mode_paiement: string };
+
+export type IndicateursPeriode = {
+  ca: number;
+  depenses: number;
+  benefice: number;
+  margeNette: number; // ratio 0..1
+  primes: number;
+  beneficeApresPrimes: number;
+  dime: number;
+  volume: number;
+  nombreVentes: number;
+  nombreProduits: number;
+  valeurMoyenneVente: number;
+  prixMoyenUnite: number;
+  lieuxActifs: number;
+  caMoyenLieu: number;
+  ventesCredit: number;
+  partCredit: number; // ratio 0..1
+};
+
+export type DetailLieu = { id: string; nom: string; ca: number; depenses: number; benefice: number; dime: number; volume: number; nombreVentes: number };
+
+export function calculerIndicateurs(
+  debut: string,
+  fin: string,
+  portee: Portee,
+  ventes: VenteComplete[],
+  depenses: DepenseI[],
+  evenements: EvenementI[],
+  primes: PrimeI[],
+): { indicateurs: IndicateursPeriode; lieux: DetailLieu[] } {
+  const dansPeriode = (d: string) => d >= debut && d <= fin;
+  const lieux = new Map(evenements.map((e) => [e.id, e]));
+  const lieuRetenu = (id: string) => {
+    const l = lieux.get(id);
+    if (!l) return false;
+    if (portee === "pdv") return l.est_point_de_vente;
+    if (portee === "evenements") return !l.est_point_de_vente;
+    return true;
+  };
+
+  const ventesP = ventes.filter((v) => dansPeriode(v.date_vente) && lieuRetenu(v.evenement_id));
+  const depP = depenses.filter((d) => dansPeriode(d.date_depense) && lieuRetenu(d.evenement_id));
+
+  const parLieu = new Map<string, { ca: number; dep: number; volume: number; n: number }>();
+  const obtenir = (id: string) => {
+    if (!parLieu.has(id)) parLieu.set(id, { ca: 0, dep: 0, volume: 0, n: 0 });
+    return parLieu.get(id)!;
+  };
+  for (const v of ventesP) {
+    const t = obtenir(v.evenement_id);
+    t.ca += Number(v.montant ?? 0);
+    t.volume += Number(v.quantite);
+    t.n += 1;
+  }
+  for (const d of depP) obtenir(d.evenement_id).dep += Number(d.montant ?? 0);
+
+  const ca = ventesP.reduce((s, v) => s + Number(v.montant ?? 0), 0);
+  const depenses_ = depP.reduce((s, d) => s + Number(d.montant ?? 0), 0);
+  const benefice = ca - depenses_;
+  const volume = ventesP.reduce((s, v) => s + Number(v.quantite), 0);
+  const nombreVentes = ventesP.length;
+  const ventesCredit = ventesP
+    .filter((v) => v.mode_paiement === "credit")
+    .reduce((s, v) => s + Number(v.montant ?? 0), 0);
+  const primesP = primes.filter((p) => {
+    const date = p.mois ? `${p.annee}-${String(p.mois).padStart(2, "0")}-01` : `${p.annee}-01-01`;
+    return dansPeriode(date) && lieuRetenu(p.evenement_id);
+  });
+  const primesTotal = primesP.reduce((s, p) => s + Number(p.prime), 0);
+
+  let dime = 0;
+  const detail: DetailLieu[] = [];
+  for (const [id, t] of parLieu) {
+    const lieu = lieux.get(id);
+    const benefLieu = t.ca - t.dep;
+    dime += benefLieu * Number(lieu?.taux_dime ?? 0.1);
+    detail.push({
+      id,
+      nom: lieu?.nom ?? "Lieu",
+      ca: t.ca,
+      depenses: t.dep,
+      benefice: benefLieu,
+      dime: benefLieu * Number(lieu?.taux_dime ?? 0.1),
+      volume: t.volume,
+      nombreVentes: t.n,
+    });
+  }
+  detail.sort((a, b) => b.ca - a.ca);
+
+  const produits = new Set(ventesP.map((v) => v.produit_id)).size;
+  const lieuxActifs = parLieu.size;
+
+  return {
+    lieux: detail,
+    indicateurs: {
+      ca,
+      depenses: depenses_,
+      benefice,
+      margeNette: ca > 0 ? benefice / ca : 0,
+      primes: primesTotal,
+      beneficeApresPrimes: benefice - primesTotal,
+      dime,
+      volume,
+      nombreVentes,
+      nombreProduits: produits,
+      valeurMoyenneVente: nombreVentes > 0 ? ca / nombreVentes : 0,
+      prixMoyenUnite: volume > 0 ? ca / volume : 0,
+      lieuxActifs,
+      caMoyenLieu: lieuxActifs > 0 ? ca / lieuxActifs : 0,
+      ventesCredit,
+      partCredit: ca > 0 ? ventesCredit / ca : 0,
+    },
+  };
+}

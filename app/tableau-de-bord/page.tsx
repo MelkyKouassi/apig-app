@@ -5,7 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import {
   analyserProduits,
   calculerHorsProduits,
+  calculerIndicateurs,
   calculerResultats,
+  type Portee,
+  type VenteComplete,
   type DepenseI,
   type EvenementI,
   type PrimeI,
@@ -32,7 +35,39 @@ const REFERENCE_2026 = {
 };
 
 const MAX_EXCLUS = 8;
-type Params = { debutA?: string; finA?: string; debutB?: string; finB?: string; exclus?: string | string[] };
+type Params = { debutA?: string; finA?: string; debutB?: string; finB?: string; exclus?: string | string[]; portee?: string };
+const PORTEES: { valeur: Portee; libelle: string }[] = [
+  { valeur: "total", libelle: "Total" },
+  { valeur: "evenements", libelle: "Événements" },
+  { valeur: "pdv", libelle: "Point de vente" },
+];
+
+type LigneComparaison = {
+  libelle: string;
+  valeur: (i: import("@/lib/indicateurs").IndicateursPeriode) => number;
+  format: (n: number) => string;
+  ratio?: boolean;
+};
+const pourcentage = (n: number) => `${(Math.round(n * 1000) / 10).toLocaleString("fr-FR")} %`;
+const entier = (n: number) => Math.round(n).toLocaleString("fr-FR");
+const LIGNES_COMPARAISON: LigneComparaison[] = [
+  { libelle: "Chiffre d'affaires (F CFA)", valeur: (i) => i.ca, format: francs },
+  { libelle: "Dépenses datées (F CFA)", valeur: (i) => i.depenses, format: francs },
+  { libelle: "Bénéfice net (CA − dépenses)", valeur: (i) => i.benefice, format: francs },
+  { libelle: "Marge nette (bénéfice ÷ CA)", valeur: (i) => i.margeNette, format: pourcentage, ratio: true },
+  { libelle: "Primes commerciales (F CFA)", valeur: (i) => i.primes, format: francs },
+  { libelle: "Bénéfice net après primes", valeur: (i) => i.beneficeApresPrimes, format: francs },
+  { libelle: "Dîme (F CFA)", valeur: (i) => i.dime, format: francs },
+  { libelle: "Volume des ventes (unités vendues)", valeur: (i) => i.volume, format: entier },
+  { libelle: "Nombre de ventes (lignes du journal)", valeur: (i) => i.nombreVentes, format: entier },
+  { libelle: "Nombre de produits différents vendus", valeur: (i) => i.nombreProduits, format: entier },
+  { libelle: "Valeur moyenne par vente (F CFA)", valeur: (i) => i.valeurMoyenneVente, format: francs },
+  { libelle: "Prix moyen par unité vendue (F CFA)", valeur: (i) => i.prixMoyenUnite, format: francs },
+  { libelle: "Lieux de vente actifs", valeur: (i) => i.lieuxActifs, format: entier },
+  { libelle: "CA moyen par lieu actif (F CFA)", valeur: (i) => i.caMoyenLieu, format: francs },
+  { libelle: "Ventes à crédit (F CFA)", valeur: (i) => i.ventesCredit, format: francs },
+  { libelle: "Part des ventes à crédit dans le CA", valeur: (i) => i.partCredit, format: pourcentage, ratio: true },
+];
 
 export default function PageTableauDeBord(props: PageProps<"/tableau-de-bord">) {
   return (
@@ -67,6 +102,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
   const finB = sp.finB ?? "2025-12-31";
   const exclusBruts = Array.isArray(sp.exclus) ? sp.exclus : sp.exclus ? [sp.exclus] : [];
   const exclus = new Set(exclusBruts.slice(0, MAX_EXCLUS));
+  const portee: Portee = PORTEES.some((p) => p.valeur === sp.portee) ? (sp.portee as Portee) : "total";
 
   const [
     { data: ventes }, { data: depenses }, { data: evenements }, { data: primes },
@@ -88,7 +124,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
   ]);
 
   const evts = (evenements ?? []) as EvenementI[];
-  const ventesI = (ventes ?? []) as (VenteProduitI & { tiers_id: string | null; mode_paiement: string })[];
+  const ventesI = (ventes ?? []) as (VenteComplete & { tiers_id: string | null })[];
   const depensesI = (depenses ?? []) as DepenseI[];
   const primesI = (primes ?? []) as PrimeI[];
   const nomsProduits = new Map((produits ?? []).map((p) => [p.id, p.nom]));
@@ -97,6 +133,8 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
   const A = calculerResultats(debutA, finA, ventesI, depensesI, evts, primesI);
   const B = calculerResultats(debutB, finB, ventesI, depensesI, evts, primesI);
   const hors = calculerHorsProduits(debutA, finA, ventesI, depensesI, exclus);
+  const comparA = calculerIndicateurs(debutA, finA, portee, ventesI, depensesI, evts, primesI);
+  const comparB = calculerIndicateurs(debutB, finB, portee, ventesI, depensesI, evts, primesI);
   const produitsA = analyserProduits(debutA, finA, ventesI, (productions ?? []) as ProductionI[], nomsProduits);
 
   // Créances : état à aujourd'hui, par tiers (restes ≤ 1 F ignorés).
@@ -168,6 +206,12 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
           <input name="finB" type="date" defaultValue={finB} required />
         </fieldset>
         <fieldset>
+          <legend>Comparaison dynamique</legend>
+          <select name="portee" defaultValue={portee}>
+            {PORTEES.map((p) => <option key={p.valeur} value={p.valeur}>{p.libelle}</option>)}
+          </select>
+        </fieldset>
+        <fieldset>
           <legend>Produits exclus du CA hors exclusions (max {MAX_EXCLUS})</legend>
           {produitsChoisis.map((p) => (
             <label key={p.id} className="case">
@@ -186,6 +230,56 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
           </p>
         ))}
         <p className="note">Créances à recouvrer : <strong>{francs(creancesTotales)}</strong> · Stock restant des événements : {Math.round(stockRestant * 10) / 10} (état à aujourd&apos;hui)</p>
+      </section>
+
+      <section className="carte-vente">
+        <p className="entete"><strong>Comparaison dynamique : {PORTEES.find((p) => p.valeur === portee)?.libelle}</strong></p>
+        <div style={{ overflowX: "auto" }}>
+          <table className="tableau">
+            <thead>
+              <tr><th>Indicateur</th><th className="nombre">Période A</th><th className="nombre">Période B</th><th className="nombre">Évolution</th></tr>
+            </thead>
+            <tbody>
+              {LIGNES_COMPARAISON.map((l) => {
+                const a = l.valeur(comparA.indicateurs);
+                const b = l.valeur(comparB.indicateurs);
+                return (
+                  <tr key={l.libelle}>
+                    <td>{l.libelle}</td>
+                    <td className="nombre">{l.format(a)}</td>
+                    <td className="nombre">{l.format(b)}</td>
+                    <td className="nombre">{l.ratio ? `${Math.round((a - b) * 1000) / 10} pts` : evolution(a, b)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {portee === "total" && comparA.lieux.length > 0 && (
+          <>
+            <p className="entete"><strong>Détail par lieu (période A)</strong></p>
+            <div style={{ overflowX: "auto" }}>
+              <table className="tableau">
+                <thead>
+                  <tr><th>Lieu</th><th className="nombre">CA</th><th className="nombre">Dépenses</th><th className="nombre">Bénéfice</th><th className="nombre">Dîme</th><th className="nombre">Unités</th><th className="nombre">Ventes</th></tr>
+                </thead>
+                <tbody>
+                  {comparA.lieux.map((l) => (
+                    <tr key={l.id}>
+                      <td>{l.nom}</td>
+                      <td className="nombre">{francs(l.ca)}</td>
+                      <td className="nombre">{francs(l.depenses)}</td>
+                      <td className="nombre">{francs(l.benefice)}</td>
+                      <td className="nombre">{francs(l.dime)}</td>
+                      <td className="nombre">{l.volume}</td>
+                      <td className="nombre">{l.nombreVentes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="carte-vente">
