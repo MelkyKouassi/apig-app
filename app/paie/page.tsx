@@ -81,6 +81,14 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
           <button type="submit" className="secondaire">Afficher</button>
         </form>
         <p className="note">Enveloppe du mois : <strong>{francs(enveloppeMois)}</strong></p>
+        <p className="entete"><strong>Bulletins du mois</strong></p>
+        <div className="formulaire">
+          {collaborateurs.map((c) => (
+            <Link key={c.id} href={`/paie/bulletin/${c.id}?mois=${moisFiche}`} className="secondaire lien">
+              Bulletin de {c.nom}
+            </Link>
+          ))}
+        </div>
         <div style={{ overflowX: "auto" }}>
           <table className="tableau">
             <thead>
