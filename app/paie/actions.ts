@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { chargerPaie } from "@/lib/paie-donnees";
 
-export type EtatVersement = { ok: true } | { ok: false; erreur: string } | null;
+export type EtatVersement = { ok: true; attente?: boolean } | { ok: false; erreur: string } | null;
 
 // Vérifie que l'utilisateur est le gérant. Renvoie le client et l'identifiant, ou un message d'erreur.
 async function gerantConnecte(): Promise<{ supabase: Awaited<ReturnType<typeof createClient>>; userId: string } | { erreur: string }> {
@@ -16,7 +16,8 @@ async function gerantConnecte(): Promise<{ supabase: Awaited<ReturnType<typeof c
   return { supabase, userId: user.id };
 }
 
-// Enregistre un versement à un collaborateur. Réservé au gérant. Contrôle : pas plus que le net à verser.
+// Enregistre un versement à un collaborateur. Le gérant : versement validé. Le comptable : en attente de l'accord du gérant.
+// Contrôle : le total (validé + en attente) ne dépasse pas le net à verser.
 export async function enregistrerVersement(_etat: EtatVersement, formData: FormData): Promise<EtatVersement> {
   const collaborateurId = String(formData.get("collaborateur_id") ?? "");
   const dateVersement = String(formData.get("date_versement") ?? "");
@@ -32,12 +33,14 @@ export async function enregistrerVersement(_etat: EtatVersement, formData: FormD
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, erreur: "Votre session a expiré. Reconnectez-vous." };
   const { data: profil } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (profil?.role !== "gerant") return { ok: false, erreur: "Seul le gérant peut enregistrer un versement." };
+  if (profil?.role !== "gerant" && profil?.role !== "comptable") return { ok: false, erreur: "Vous ne pouvez pas enregistrer de versement." };
+  const estGerant = profil.role === "gerant";
 
   const paie = await chargerPaie(supabase);
   const nets = (paie.netParMois.get(collaborateurId) ?? []).reduce((s, v) => s + v, 0);
   const verses = paie.versements.filter((v) => v.collaborateur_id === collaborateurId).reduce((s, v) => s + v.montant, 0);
-  const reste = nets - verses;
+  const enAttente = paie.versementsAttente.filter((v) => v.collaborateur_id === collaborateurId).reduce((s, v) => s + v.montant, 0);
+  const reste = nets - verses - enAttente;
   if (montant > reste + 1) {
     return { ok: false, erreur: `Le versement dépasse le reste à verser (${Math.round(reste).toLocaleString("fr-FR")} F).` };
   }
@@ -48,9 +51,43 @@ export async function enregistrerVersement(_etat: EtatVersement, formData: FormD
     annee: paie.annee,
     mois,
     montant,
+    statut: estGerant ? "valide" : "attente",
+    valide_par: estGerant ? user.id : null,
+    valide_le: estGerant ? new Date().toISOString() : null,
     created_by: user.id,
   });
   if (error) return { ok: false, erreur: "Le versement n'a pas pu être enregistré." };
+
+  revalidatePath("/paie");
+  return { ok: true, attente: !estGerant };
+}
+
+// Le gérant accorde (valider) ou refuse un versement saisi par le comptable.
+export async function validerVersement(_etat: EtatVersement, formData: FormData): Promise<EtatVersement> {
+  const id = String(formData.get("id") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (!id || (decision !== "valider" && decision !== "refuser")) return { ok: false, erreur: "Demande invalide." };
+
+  const s = await gerantConnecte();
+  if ("erreur" in s) return { ok: false, erreur: s.erreur };
+
+  if (decision === "valider") {
+    const paie = await chargerPaie(s.supabase);
+    const versement = paie.versementsAttente.find((v) => v.id === id);
+    if (!versement) return { ok: false, erreur: "Ce versement n'est plus en attente." };
+    const nets = (paie.netParMois.get(versement.collaborateur_id) ?? []).reduce((t, v) => t + v, 0);
+    const verses = paie.versements.filter((v) => v.collaborateur_id === versement.collaborateur_id).reduce((t, v) => t + v.montant, 0);
+    if (versement.montant > nets - verses + 1) {
+      return { ok: false, erreur: `Ce versement dépasse le reste à verser (${Math.round(nets - verses).toLocaleString("fr-FR")} F). Refusez-le ou corrigez la paie.` };
+    }
+  }
+
+  const { error } = await s.supabase.from("versements").update({
+    statut: decision === "valider" ? "valide" : "refuse",
+    valide_par: s.userId,
+    valide_le: new Date().toISOString(),
+  }).eq("id", id).eq("statut", "attente");
+  if (error) return { ok: false, erreur: "La décision n'a pas pu être enregistrée." };
 
   revalidatePath("/paie");
   return { ok: true };

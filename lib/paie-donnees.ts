@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculerPaie, partCollaborateur, type LignePaie, type MoisDonnees, type OptionsPaie } from "./paie";
 
 export type CollaborateurPaie = { id: string; nom: string; parts: number };
-export type VersementPaie = { id: string; collaborateur_id: string; date_versement: string; mois: number; montant: number };
+export type VersementPaie = { id: string; collaborateur_id: string; date_versement: string; mois: number; montant: number; statut: "attente" | "valide" | "refuse" };
 export type RetenuePaie = { id: string; collaborateur_id: string; mois: number; libelle: string; montant: number; statut: "actif" | "annule" };
 
 export type PaieAnnee = {
@@ -17,7 +17,10 @@ export type PaieAnnee = {
   retenuesParMois: Map<string, number[]>;
   netParMois: Map<string, number[]>;
   retenues: RetenuePaie[];
+  // versements validés (comptent pour le reste à verser)
   versements: VersementPaie[];
+  // versements saisis par le comptable, en attente de l'accord du gérant
+  versementsAttente: VersementPaie[];
 };
 
 // Charge les données de paie d'une année et calcule l'enveloppe, les parts et les montants dus.
@@ -31,7 +34,7 @@ export async function chargerPaie(supabase: SupabaseClient): Promise<PaieAnnee> 
     supabase.from("charges").select("id, nature, montant_habituel").eq("actif", true),
     supabase.from("charges_mensuelles").select("charge_id, annee, mois, montant_reel"),
     supabase.from("collaborateurs").select("id, nom, parts").order("nom"),
-    supabase.from("versements").select("id, collaborateur_id, date_versement, annee, mois, montant").order("date_versement"),
+    supabase.from("versements").select("id, collaborateur_id, date_versement, annee, mois, montant, statut").order("date_versement"),
     supabase.from("retenues_bulletin").select("id, collaborateur_id, annee, mois, libelle, montant, statut").order("created_at"),
   ]);
 
@@ -125,9 +128,11 @@ export async function chargerPaie(supabase: SupabaseClient): Promise<PaieAnnee> 
     netParMois.set(c.id, du.map((d, i) => d - retenuesMois[i]));
   }
 
-  const versementsAnnee: VersementPaie[] = (versements ?? [])
+  const tousVersements: VersementPaie[] = (versements ?? [])
     .filter((v) => v.annee === annee)
-    .map((v) => ({ id: v.id, collaborateur_id: v.collaborateur_id, date_versement: v.date_versement, mois: v.mois, montant: Number(v.montant) }));
+    .map((v) => ({ id: v.id, collaborateur_id: v.collaborateur_id, date_versement: v.date_versement, mois: v.mois, montant: Number(v.montant), statut: v.statut }));
+  const versementsAnnee = tousVersements.filter((v) => v.statut === "valide");
+  const versementsAttente = tousVersements.filter((v) => v.statut === "attente");
 
-  return { annee, options, lignes, collaborateurs, totalParts, duParMois, retenuesParMois, netParMois, retenues, versements: versementsAnnee };
+  return { annee, options, lignes, collaborateurs, totalParts, duParMois, retenuesParMois, netParMois, retenues, versements: versementsAnnee, versementsAttente };
 }

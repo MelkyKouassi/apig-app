@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { chargerPaie } from "@/lib/paie-donnees";
 import { FormulaireVersement } from "./FormulaireVersement";
+import { FormulaireDecisionVersement } from "./FormulairesVersement";
 import { FormulaireAnnulerRetenue, FormulaireRetenue, FormulaireValidation } from "./FormulairesRetenues";
 import { dateFr, dateHeureFr } from "@/lib/dates";
 import { Sommaire } from "@/components/Sommaire";
@@ -32,7 +33,7 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
   const estGerant = profil.role === "gerant";
 
   const paie = await chargerPaie(supabase);
-  const { annee, lignes, collaborateurs, duParMois, retenuesParMois, netParMois, retenues, versements } = paie;
+  const { annee, lignes, collaborateurs, duParMois, retenuesParMois, netParMois, retenues, versements, versementsAttente } = paie;
 
   // Bulletins validés : un enregistrement par collaborateur et par mois.
   const { data: bulletinsValides } = await supabase.from("bulletins").select("collaborateur_id, annee, mois, valide_le");
@@ -54,6 +55,7 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
           { id: "fiche", libelle: "Fiche du mois" },
           { id: "reste", libelle: "Reste à verser" },
           { id: "versement", libelle: "Versement" },
+          { id: "attente", libelle: "En attente" },
           { id: "retenues", libelle: "Retenues" },
           { id: "journal", libelle: "Journal" },
         ]} />
@@ -156,12 +158,25 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
         })}
       </section>
 
-      {estGerant && (
-        <section id="versement" className="carte-vente">
-          <p className="entete"><strong>Enregistrer un versement</strong></p>
-          <FormulaireVersement collaborateurs={collaborateurs.map((c) => ({ id: c.id, nom: c.nom }))} moisParDefaut={moisFiche} />
-        </section>
-      )}
+      <section id="versement" className="carte-vente">
+        <p className="entete"><strong>Enregistrer un versement</strong></p>
+        {!estGerant && <p className="note">Un versement que vous saisissez reste en attente jusqu&apos;à l&apos;accord du gérant.</p>}
+        <FormulaireVersement collaborateurs={collaborateurs.map((c) => ({ id: c.id, nom: c.nom }))} moisParDefaut={moisFiche} />
+      </section>
+
+      <section id="attente" className="carte-vente">
+        <p className="entete"><strong>Versements en attente d&apos;accord</strong></p>
+        {versementsAttente.length === 0 && <p className="note">Aucun versement en attente.</p>}
+        {versementsAttente.map((v) => {
+          const nom = collaborateurs.find((c) => c.id === v.collaborateur_id)?.nom ?? "Collaborateur";
+          return (
+            <div key={v.id} className="note">
+              <p>{dateFr(v.date_versement)} · {nom} · mois concerné {NOMS_MOIS[v.mois - 1]} · <strong>{francs(v.montant)}</strong></p>
+              {estGerant && <FormulaireDecisionVersement id={v.id} />}
+            </div>
+          );
+        })}
+      </section>
 
       <section id="retenues" className="carte-vente">
         <p className="entete"><strong>Retenues facultatives</strong></p>

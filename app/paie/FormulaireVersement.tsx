@@ -22,7 +22,8 @@ export function FormulaireVersement({ collaborateurs, moisParDefaut }: { collabo
       <input name="montant" type="number" min="1" step="any" inputMode="decimal" placeholder="Montant versé (F CFA)" required />
       <button type="submit" className="secondaire" disabled={enCours}>{enCours ? "Enregistrement..." : "Enregistrer le versement"}</button>
       {etat && !etat.ok && <p className="erreur">{etat.erreur}</p>}
-      {etat?.ok && <p className="succes">Versement enregistré.</p>}
+      {etat?.ok && !etat.attente && <p className="succes">Versement enregistré.</p>}
+      {etat?.ok && etat.attente && <p className="succes">Versement enregistré. Il sera compté après l'accord du gérant.</p>}
     </form>
   );
 }
