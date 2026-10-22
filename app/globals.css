@@ -165,3 +165,8 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 .negatif { color: var(--erreur); font-weight: 600; }
 .positif { color: var(--accent); }
 .alerte { color: #b45309; font-weight: 600; }
+
+/* Impression : pas de navigation, pas de curseur, pas de sommaire sur le papier */
+@media print {
+  .barre-nav, .curseur-defilement, .curseur-espace, .sommaire, .no-print { display: none !important; }
+}
