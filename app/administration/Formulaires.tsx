@@ -94,10 +94,11 @@ export type CollaborateurFiche = {
   date_entree: string | null;
   mode_paiement: string | null;
   numero_cnps: string | null;
+  user_id?: string | null;
   actif: boolean;
 };
 
-export function FormulaireCollaborateur({ c }: { c: CollaborateurFiche | null }) {
+export function FormulaireCollaborateur({ c, comptes }: { c: CollaborateurFiche | null; comptes: { id: string; nom: string }[] }) {
   const [etat, action, enCours] = useActionState<EtatAdmin, FormData>(enregistrerCollaborateur, null);
   const nouveau = c === null;
   return (
@@ -110,6 +111,12 @@ export function FormulaireCollaborateur({ c }: { c: CollaborateurFiche | null })
       <label>Date d&apos;entrée <input name="date_entree" type="date" defaultValue={c?.date_entree ?? ""} /></label>
       <label>Mode de paiement <input name="mode_paiement" defaultValue={c?.mode_paiement ?? ""} /></label>
       <label>N° CNPS <input name="numero_cnps" defaultValue={c?.numero_cnps ?? ""} placeholder="À compléter" /></label>
+      <label>Compte de connexion
+        <select name="user_id" defaultValue={c?.user_id ?? ""}>
+          <option value="">Aucun compte (pas d&apos;accès à l&apos;espace bulletins)</option>
+          {comptes.map((k) => <option key={k.id} value={k.id}>{k.nom}</option>)}
+        </select>
+      </label>
       <label className="case"><input type="checkbox" name="actif" defaultChecked={nouveau ? true : c.actif} /> Actif</label>
       <button type="submit" className="secondaire" disabled={enCours}>{enCours ? "Enregistrement..." : nouveau ? "Ajouter le collaborateur" : "Enregistrer la fiche"}</button>
       <Message etat={etat} />

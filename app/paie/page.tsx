@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { chargerPaie } from "@/lib/paie-donnees";
 import { FormulaireVersement } from "./FormulaireVersement";
+import { FormulaireAnnulerRetenue, FormulaireRetenue, FormulaireValidation } from "./FormulairesRetenues";
 import { dateFr, dateHeureFr } from "@/lib/dates";
 import { Sommaire } from "@/components/Sommaire";
 
@@ -31,7 +32,10 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
   const estGerant = profil.role === "gerant";
 
   const paie = await chargerPaie(supabase);
-  const { annee, lignes, collaborateurs, duParMois, versements } = paie;
+  const { annee, lignes, collaborateurs, duParMois, retenuesParMois, netParMois, retenues, versements } = paie;
+
+  // Bulletins validés : un enregistrement par collaborateur et par mois.
+  const { data: bulletinsValides } = await supabase.from("bulletins").select("collaborateur_id, annee, mois, valide_le");
 
   // Mois de la fiche : celui demandé, sinon le dernier mois avec une enveloppe.
   const dernierMois = Math.max(1, ...lignes.filter((l) => l.enveloppe > 0).map((l) => l.mois));
@@ -50,6 +54,7 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
           { id: "fiche", libelle: "Fiche du mois" },
           { id: "reste", libelle: "Reste à verser" },
           { id: "versement", libelle: "Versement" },
+          { id: "retenues", libelle: "Retenues" },
           { id: "journal", libelle: "Journal" },
         ]} />
       <p className="total">Enveloppe distribuable : {francs(totalEnveloppe)}</p>
@@ -90,6 +95,15 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
           <button type="submit" className="secondaire">Afficher</button>
         </form>
         <p className="note">Enveloppe du mois : <strong>{francs(enveloppeMois)}</strong></p>
+        {(() => {
+          const valide = (bulletinsValides ?? []).find((b) => b.annee === annee && b.mois === moisFiche);
+          return valide ? (
+            <p className="succes">Paie validée le {dateFr(valide.valide_le.slice(0, 10))}.</p>
+          ) : (
+            <p className="erreur">Paie non validée : les montants ci-dessous sont provisoires.</p>
+          );
+        })()}
+        {estGerant && <FormulaireValidation mois={moisFiche} />}
         <p className="entete"><strong>Bulletins du mois</strong></p>
         <div className="formulaire">
           <Link href={`/paie/bulletins?mois=${moisFiche}`} className="lien">
@@ -104,19 +118,23 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
         <div style={{ overflowX: "auto" }}>
           <table className="tableau">
             <thead>
-              <tr><th>Collaborateur</th><th className="nombre">Parts</th><th className="nombre">Montant dû</th><th className="nombre">Versé pour ce mois</th><th className="nombre">Reste à verser</th></tr>
+              <tr><th>Collaborateur</th><th className="nombre">Parts</th><th className="nombre">Montant dû</th><th className="nombre">Retenues</th><th className="nombre">Net à payer</th><th className="nombre">Versé pour ce mois</th><th className="nombre">Reste à verser</th></tr>
             </thead>
             <tbody>
               {collaborateurs.map((c) => {
                 const du = duParMois.get(c.id)?.[moisFiche - 1] ?? 0;
+                const retenu = retenuesParMois.get(c.id)?.[moisFiche - 1] ?? 0;
+                const net = netParMois.get(c.id)?.[moisFiche - 1] ?? 0;
                 const verse = versements.filter((v) => v.collaborateur_id === c.id && v.mois === moisFiche).reduce((s, v) => s + v.montant, 0);
                 return (
                   <tr key={c.id}>
                     <td>{c.nom}</td>
                     <td className="nombre">{c.parts}</td>
                     <td className="nombre">{francs(du)}</td>
+                    <td className="nombre">{retenu > 0 ? `− ${francs(retenu)}` : "—"}</td>
+                    <td className="nombre">{francs(net)}</td>
                     <td className="nombre">{francs(verse)}</td>
-                    <td className="nombre">{francs(du - verse)}</td>
+                    <td className={`nombre ${net - verse < 0 ? "negatif" : ""}`}>{francs(net - verse)}</td>
                   </tr>
                 );
               })}
@@ -128,11 +146,11 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
       <section id="reste" className="carte-vente">
         <p className="entete"><strong>Reste à verser (cumul de l&apos;année)</strong></p>
         {collaborateurs.map((c) => {
-          const du = (duParMois.get(c.id) ?? []).reduce((s, v) => s + v, 0);
+          const net = (netParMois.get(c.id) ?? []).reduce((s, v) => s + v, 0);
           const verse = versements.filter((v) => v.collaborateur_id === c.id).reduce((s, v) => s + v.montant, 0);
           return (
             <p key={c.id} className="note">
-              {c.nom} : dû {francs(du)} · versé {francs(verse)} · <strong>reste {francs(du - verse)}</strong>
+              {c.nom} : net dû {francs(net)} · versé {francs(verse)} · <strong>reste {francs(net - verse)}</strong>
             </p>
           );
         })}
@@ -144,6 +162,24 @@ async function ContenuPaie({ searchParams }: { searchParams: Promise<Params> }) 
           <FormulaireVersement collaborateurs={collaborateurs.map((c) => ({ id: c.id, nom: c.nom }))} moisParDefaut={moisFiche} />
         </section>
       )}
+
+      <section id="retenues" className="carte-vente">
+        <p className="entete"><strong>Retenues facultatives</strong></p>
+        <p className="note">Elles réduisent le net à payer du bulletin du mois concerné.</p>
+        {estGerant && <FormulaireRetenue collaborateurs={collaborateurs.map((c) => ({ id: c.id, nom: c.nom }))} moisParDefaut={moisFiche} />}
+        {retenues.filter((r) => r.mois === moisFiche).length === 0 && <p className="note">Aucune retenue pour ce mois.</p>}
+        {retenues.filter((r) => r.mois === moisFiche).map((r) => {
+          const nom = collaborateurs.find((c) => c.id === r.collaborateur_id)?.nom ?? "Collaborateur";
+          return (
+            <div key={r.id} className="note">
+              <p>
+                {nom} · {r.libelle} · {francs(r.montant)} {r.statut === "annule" ? <span className="erreur">(annulée)</span> : ""}
+              </p>
+              {estGerant && r.statut === "actif" && <FormulaireAnnulerRetenue id={r.id} />}
+            </div>
+          );
+        })}
+      </section>
 
       <section id="journal" className="carte-vente">
         <p className="entete"><strong>Journal des versements</strong></p>

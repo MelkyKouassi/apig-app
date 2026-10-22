@@ -119,13 +119,14 @@ export async function enregistrerCollaborateur(_etat: EtatAdmin, f: FormData): P
     date_entree: dateEntree,
     mode_paiement: texte(f, "mode_paiement"),
     numero_cnps: texte(f, "numero_cnps"),
+    user_id: texte(f, "user_id"),
     actif: coche(f, "actif"),
   };
   const requete = id
     ? s.supabase.from("collaborateurs").update(valeurs).eq("id", id)
     : s.supabase.from("collaborateurs").insert(valeurs);
   const { error } = await requete;
-  if (error) return { ok: false, erreur: "Le collaborateur n'a pas pu être enregistré (ce nom existe peut-être déjà)." };
+  if (error) return { ok: false, erreur: "Le collaborateur n'a pas pu être enregistré (ce nom, ou ce compte, est peut-être déjà utilisé)." };
 
   revalidatePath("/administration");
   revalidatePath("/paie");

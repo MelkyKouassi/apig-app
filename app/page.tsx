@@ -43,6 +43,9 @@ async function ContenuAccueil() {
           {profil.role === "gerant" && (
             <Link href="/ventes" className="secondaire lien">Ventes du jour</Link>
           )}
+          {profil.role === "collaboratrice" && (
+            <Link href="/mes-bulletins" className="secondaire lien">Mes bulletins</Link>
+          )}
           {profil.role === "commercial" && (
             <Link href="/mes-ventes" className="secondaire lien">Mes ventes du jour</Link>
           )}

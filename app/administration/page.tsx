@@ -56,11 +56,12 @@ async function ContenuAdministration() {
   const [{ data: entreprise }, { data: parametres }, { data: collabs }, { data: profils }, { data: audit }] = await Promise.all([
     supabase.from("entreprise").select("*").limit(1).maybeSingle(),
     supabase.from("parametres").select("*").limit(1).maybeSingle(),
-    supabase.from("collaborateurs").select("id, nom, parts, matricule, fonction, date_entree, mode_paiement, numero_cnps, actif").order("nom"),
+    supabase.from("collaborateurs").select("id, nom, parts, matricule, fonction, date_entree, mode_paiement, numero_cnps, user_id, actif").order("nom"),
     supabase.from("profiles").select("id, nom_complet, role, actif").order("nom_complet"),
     supabase.from("audit_log").select("id, table_name, row_id, action, old_data, new_data, user_id, created_at").order("created_at", { ascending: false }).limit(100),
   ]);
   const noms = new Map((profils ?? []).map((p) => [p.id, p.nom_complet as string]));
+  const comptes = (profils ?? []).filter((p) => p.role === "collaboratrice").map((p) => ({ id: p.id, nom: p.nom_complet as string }));
 
   return (
     <main className="page-centree">
@@ -129,12 +130,12 @@ async function ContenuAdministration() {
         {(collabs ?? []).map((c) => (
           <details key={c.id} style={{ margin: "8px 0" }}>
             <summary>Fiche de {c.nom}</summary>
-            <FormulaireCollaborateur c={{ id: c.id, nom: c.nom, parts: Number(c.parts), matricule: c.matricule, fonction: c.fonction, date_entree: c.date_entree, mode_paiement: c.mode_paiement, numero_cnps: c.numero_cnps, actif: c.actif }} />
+            <FormulaireCollaborateur c={{ id: c.id, nom: c.nom, parts: Number(c.parts), matricule: c.matricule, fonction: c.fonction, date_entree: c.date_entree, mode_paiement: c.mode_paiement, numero_cnps: c.numero_cnps, user_id: c.user_id, actif: c.actif }} comptes={comptes} />
           </details>
         ))}
         <details style={{ marginTop: 12 }}>
           <summary className="lien">Ajouter un collaborateur</summary>
-          <FormulaireCollaborateur c={null} />
+          <FormulaireCollaborateur c={null} comptes={comptes} />
         </details>
       </section>
 

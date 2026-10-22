@@ -1,5 +1,6 @@
 import { dateFr, dateHeureFr } from "@/lib/dates";
-// Mise en page d'un bulletin de paie (A4). Partagée par le bulletin individuel et l'impression groupée.
+// Mise en page d'un bulletin de paie (A4). Partagée par le bulletin individuel, l'impression groupée et l'espace collaboratrice.
+import type { BulletinMois } from "@/lib/bulletins-donnees";
 
 export const NOMS_MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F CFA`;
@@ -50,14 +51,12 @@ type Props = {
   collab: CollaborateurBulletin;
   annee: number;
   mois: number;
-  totalParts: number;
-  enveloppe: number;
-  du: number;
+  bulletin: BulletinMois;
   verse: number;
 };
 
-export function BulletinPaie({ entreprise, collab, annee, mois, totalParts, enveloppe, du, verse }: Props) {
-  const net = du; // aucune retenue facultative saisie à ce jour
+export function BulletinPaie({ entreprise, collab, annee, mois, bulletin, verse }: Props) {
+  const { totalParts, enveloppe, du, retenues, retenuesTotal, net } = bulletin;
   return (
     <section className="bulletin">
       <div className="entete-entreprise">
@@ -91,7 +90,11 @@ export function BulletinPaie({ entreprise, collab, annee, mois, totalParts, enve
         </thead>
         <tbody>
           <tr><td>Part de l&apos;enveloppe du mois ({collab.parts} part{collab.parts > 1 ? "s" : ""} sur {totalParts})</td><td className="nombre">{francs(enveloppe)}</td><td className="nombre">{francs(du)}</td></tr>
-          <tr><td>Retenues facultatives</td><td className="nombre">—</td><td className="nombre">0 F CFA</td></tr>
+          {retenues.length === 0 && <tr><td>Retenues facultatives</td><td className="nombre">—</td><td className="nombre">0 F CFA</td></tr>}
+          {retenues.map((r, i) => (
+            <tr key={i}><td>Retenue : {r.libelle}</td><td className="nombre">—</td><td className="nombre">− {francs(r.montant)}</td></tr>
+          ))}
+          {retenues.length > 0 && <tr><td>Total des retenues</td><td></td><td className="nombre">− {francs(retenuesTotal)}</td></tr>}
           <tr><th>Net à payer</th><td></td><th className="nombre">{francs(net)}</th></tr>
           <tr><td>Déjà versé pour ce mois</td><td></td><td className="nombre">{francs(verse)}</td></tr>
           <tr><th>Reste à verser</th><td></td><th className="nombre">{francs(net - verse)}</th></tr>

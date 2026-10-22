@@ -11,6 +11,7 @@ export async function BarreNavigation() {
   const role = profil?.role ?? "";
 
   const liens: { href: string; libelle: string }[] = [{ href: "/", libelle: "Accueil" }];
+  if (role === "collaboratrice") liens.push({ href: "/mes-bulletins", libelle: "Mes bulletins" });
   if (role === "commercial") {
     liens.push({ href: "/ventes/nouvelle", libelle: "Nouvelle vente" }, { href: "/mes-ventes", libelle: "Mes ventes" });
   }

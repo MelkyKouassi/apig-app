@@ -3,6 +3,7 @@ import { calculerPaie, partCollaborateur, type LignePaie, type MoisDonnees, type
 
 export type CollaborateurPaie = { id: string; nom: string; parts: number };
 export type VersementPaie = { id: string; collaborateur_id: string; date_versement: string; mois: number; montant: number };
+export type RetenuePaie = { id: string; collaborateur_id: string; mois: number; libelle: string; montant: number; statut: "actif" | "annule" };
 
 export type PaieAnnee = {
   annee: number;
@@ -12,12 +13,16 @@ export type PaieAnnee = {
   totalParts: number;
   // montant dû par collaborateur et par mois (index 0 = janvier)
   duParMois: Map<string, number[]>;
+  // retenues facultatives actives par collaborateur et par mois, et net à payer (dû − retenues)
+  retenuesParMois: Map<string, number[]>;
+  netParMois: Map<string, number[]>;
+  retenues: RetenuePaie[];
   versements: VersementPaie[];
 };
 
 // Charge les données de paie d'une année et calcule l'enveloppe, les parts et les montants dus.
 export async function chargerPaie(supabase: SupabaseClient): Promise<PaieAnnee> {
-  const [{ data: p }, { data: ventes }, { data: depenses }, { data: evts }, { data: primes }, { data: charges }, { data: chargesReelles }, { data: collabs }, { data: versements }] = await Promise.all([
+  const [{ data: p }, { data: ventes }, { data: depenses }, { data: evts }, { data: primes }, { data: charges }, { data: chargesReelles }, { data: collabs }, { data: versements }, { data: retenuesBrutes }] = await Promise.all([
     supabase.from("parametres").select("*").limit(1).maybeSingle(),
     supabase.from("ventes").select("date_vente, montant, evenement_id").eq("statut", "actif"),
     supabase.from("depenses").select("date_depense, montant, categorie, evenement_id").eq("statut", "actif"),
@@ -27,6 +32,7 @@ export async function chargerPaie(supabase: SupabaseClient): Promise<PaieAnnee> 
     supabase.from("charges_mensuelles").select("charge_id, annee, mois, montant_reel"),
     supabase.from("collaborateurs").select("id, nom, parts").order("nom"),
     supabase.from("versements").select("id, collaborateur_id, date_versement, annee, mois, montant").order("date_versement"),
+    supabase.from("retenues_bulletin").select("id, collaborateur_id, annee, mois, libelle, montant, statut").order("created_at"),
   ]);
 
   const annee = Number(p?.annee_reference ?? 2026);
@@ -106,9 +112,22 @@ export async function chargerPaie(supabase: SupabaseClient): Promise<PaieAnnee> 
     duParMois.set(c.id, lignes.map((l) => partCollaborateur(l.enveloppe, c.parts, totalParts)));
   }
 
+  const retenues: RetenuePaie[] = (retenuesBrutes ?? [])
+    .filter((r) => r.annee === annee)
+    .map((r) => ({ id: r.id, collaborateur_id: r.collaborateur_id, mois: r.mois, libelle: r.libelle, montant: Number(r.montant), statut: r.statut }));
+  const retenuesParMois = new Map<string, number[]>();
+  const netParMois = new Map<string, number[]>();
+  for (const c of collaborateurs) {
+    const retenuesMois = Array(12).fill(0) as number[];
+    for (const r of retenues) if (r.collaborateur_id === c.id && r.statut === "actif") retenuesMois[r.mois - 1] += r.montant;
+    retenuesParMois.set(c.id, retenuesMois);
+    const du = duParMois.get(c.id) ?? Array(12).fill(0);
+    netParMois.set(c.id, du.map((d, i) => d - retenuesMois[i]));
+  }
+
   const versementsAnnee: VersementPaie[] = (versements ?? [])
     .filter((v) => v.annee === annee)
     .map((v) => ({ id: v.id, collaborateur_id: v.collaborateur_id, date_versement: v.date_versement, mois: v.mois, montant: Number(v.montant) }));
 
-  return { annee, options, lignes, collaborateurs, totalParts, duParMois, versements: versementsAnnee };
+  return { annee, options, lignes, collaborateurs, totalParts, duParMois, retenuesParMois, netParMois, retenues, versements: versementsAnnee };
 }
