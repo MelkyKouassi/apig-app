@@ -6,6 +6,7 @@ import { FormulaireReglement } from "./FormulaireReglement";
 import { FormulaireReglementDepot } from "@/app/depot-vente/FormulaireReglementDepot";
 import { dateFr, dateHeureFr } from "@/lib/dates";
 import { Sommaire } from "@/components/Sommaire";
+import { plusAncienneRemiseImpayee, retardJours } from "@/lib/depot-retard";
 
 type Client = { id: string; nom: string; telephone: string | null; type: string | null };
 
@@ -37,7 +38,7 @@ async function ContenuCreances() {
   const estGerant = profil?.role === "gerant";
 
   const [{ data: parametres }, { data: ventes }, { data: reglements }, { data: depots }, { data: reglementsDepot }, { data: tiers }, { data: produits }] = await Promise.all([
-    supabase.from("parametres").select("delai_credit_jours").limit(1).maybeSingle(),
+    supabase.from("parametres").select("delai_credit_jours, delai_paiement_jours").limit(1).maybeSingle(),
     supabase.from("ventes").select("tiers_id, montant, date_vente, produit_id, quantite").eq("mode_paiement", "credit").eq("statut", "actif"),
     supabase.from("reglements").select("tiers_id, montant, date_reglement").eq("origine", "credit").eq("statut", "actif"),
     supabase.from("v_depots_lignes").select("tiers_id, montant_du, date_remise"),
@@ -100,8 +101,22 @@ async function ContenuCreances() {
     c.recu += Number(r.montant ?? 0);
     if (!c.dernierReglement || r.date_reglement > c.dernierReglement) c.dernierReglement = r.date_reglement;
   }
+  // Remises par destinataire, pour trouver la plus ancienne remise encore impayée (R13 dépôt-vente).
+  const remisesDepot = new Map<string, { date: string; montant: number }[]>();
+  for (const d of (depots ?? []) as { tiers_id: string | null; montant_du: number | null; date_remise: string }[]) {
+    if (!d.tiers_id) continue;
+    const liste = remisesDepot.get(d.tiers_id) ?? [];
+    liste.push({ date: d.date_remise, montant: Number(d.montant_du ?? 0) });
+    remisesDepot.set(d.tiers_id, liste);
+  }
+  const delaiDepot = parametres?.delai_paiement_jours ?? 30;
   const lignesDepots = [...parDepot.entries()]
-    .map(([id, c]) => ({ id, c, reste: c.du - c.recu, pct: c.du > 0 ? Math.min(100, (c.recu / c.du) * 100) : 0 }))
+    .map(([id, c]) => {
+      const reste = c.du - c.recu;
+      const impayee = plusAncienneRemiseImpayee(remisesDepot.get(id) ?? [], c.recu);
+      const retard = retardJours(impayee, delaiDepot, aujourdhui);
+      return { id, c, reste, impayee, retard, pct: c.du > 0 ? Math.min(100, (c.recu / c.du) * 100) : 0 };
+    })
     .filter((l) => l.reste > 1)
     .sort((a, b) => b.reste - a.reste);
   const totalDepots = lignesDepots.reduce((s, l) => s + l.reste, 0);
@@ -152,18 +167,21 @@ async function ContenuCreances() {
       {lignesDepots.length === 0 && <p className="note">Aucun destinataire de dépôt-vente ne doit encore de l&apos;argent.</p>}
       {lignesDepots.map((l) => {
         const destinataire = nomsClients.get(l.id);
+        const a = alerte(l.retard ?? -999);
         return (
           <section key={l.id} className="carte-vente">
             <p className="entete">
               <strong>{destinataire?.nom ?? "Destinataire"}</strong>
               <span className="badge attention">{destinataire?.type ?? "Dépôt"}</span>
+              <span className={`badge ${a.classe}`}>{a.libelle}</span>
             </p>
             {destinataire?.telephone && (
               <p className="note"><a href={`tel:${destinataire.telephone}`} className="lien-tel">{destinataire.telephone}</a></p>
             )}
             <p>Reste à payer : <strong>{francs(l.reste)}</strong> sur {francs(l.c.du)} ({Math.round(l.pct)} % réglé)</p>
             <p className="note">
-              Plus ancien dépôt : {dateFr(l.c.plusAncienne)} · Dernier règlement : {dateFr(l.c.dernierReglement, "aucun")}
+              Plus ancienne remise impayée : {dateFr(l.impayee, "—")} · Dernier règlement : {dateFr(l.c.dernierReglement, "aucun")}
+              {l.retard !== null && ` · Retard : ${Math.max(0, l.retard)} j`}
             </p>
             {estGerant && <FormulaireReglementDepot tiersId={l.id} reste={l.reste} />}
           </section>
