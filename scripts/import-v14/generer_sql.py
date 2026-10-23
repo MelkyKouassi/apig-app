@@ -117,13 +117,13 @@ for r in ev[5:20]:
         commerciaux.append(str(r[47]).strip())
 for r in ev[5:21]:
     if r[34]: commerciaux.append(str(r[34]).strip())
-for r in R("Ventes")[4:483]:
+for r in R("Ventes")[4:700]:
     if r[8]: commerciaux.append(str(r[8]).strip())
 commerciaux = sorted(set(commerciaux))
 
 # ---------- Ventes ----------
 ventes = []
-for i, r in enumerate(R("Ventes")[4:483], 5):
+for i, r in enumerate(R("Ventes")[4:700], 5):
     if r[0] is None:
         continue
     if not r[3]:
@@ -144,7 +144,7 @@ CAT = {
     "Autre": "autre",
 }
 depenses = []
-for i, r in enumerate(R("Dépenses")[4:81], 5):
+for i, r in enumerate(R("Dépenses")[4:400], 5):
     if r[0] is None:
         continue
     cat_ = CAT.get(str(r[3]).strip())
@@ -158,7 +158,7 @@ EXCLUS_DEPOT = set(range(12, 18))  # Madeleine SAWADOGO, lignes 12 à 17 (décis
 TYPES = {"Pharmacie": "pharmacie", "Personnel": "personnel"}
 depots = []
 tiers_depot = {}  # nom -> (type, téléphone)
-for i, r in enumerate(dv[4:124], 5):
+for i, r in enumerate(dv[4:400], 5):
     if r[0] is None or r[1] in (None, ""):
         continue
     if i in EXCLUS_DEPOT:
@@ -196,7 +196,7 @@ tiers_clients = set()
 for r in cr[9:]:
     if r[30] and r[31] and num(r[32]):
         reglements_clients.append((r[30], str(r[31]).strip(), num(r[32])))
-for r in R("Ventes")[4:483]:
+for r in R("Ventes")[4:700]:
     if r[9] and str(r[9]).strip() and r[0]:
         tiers_clients.add(str(r[9]).strip())
 for r in cr[9:]:
@@ -211,9 +211,16 @@ if conflits:
     raise SystemExit(f"Conflit de noms client / dépôt : {conflits}")
 
 # ---------- Collaborateurs ----------
-fiche = {str(r[0]).strip(): r for r in bu[29:36] if r and r[0] and r[1]}
+fiche = {str(r[0]).strip(): r for r in bu[29:45] if r and r[0] and r[1]}
 collaborateurs = []
-for r in pa[73:79]:
+# Lit la liste « Collaborateur / Parts » jusqu'à la ligne TOTAL (ignore les lignes vides ou sans nombre de parts).
+for r in pa[73:88]:
+    if not r[0] or str(r[0]).strip().upper().startswith("TOTAL"):
+        if r[0] and str(r[0]).strip().upper().startswith("TOTAL"):
+            break
+        continue
+    if str(r[0]).strip() in ("Collaborateur",) or num(r[1]) is None:
+        continue
     nom = str(r[0]).strip()
     f = fiche.get(nom)
     collaborateurs.append((nom, num(r[1]), f[1] if f else None, f[2] if f else None, f[4] if f else None))
@@ -235,7 +242,7 @@ for i, nature in LIGNES_CHARGES:
 
 # ---------- Écriture du script ----------
 w("-- =====================================================================")
-w("-- Import du classeur APIG-PHARMA v14 (copie du 18/10/2026, 18 h 11)")
+w("-- Import du classeur APIG-PHARMA : " + SRC.split("/")[-1])
 w("-- À coller UNE SEULE FOIS dans le SQL Editor de Supabase, base vide.")
 w("-- Tout ou rien : une seule transaction.")
 w("-- =====================================================================")
