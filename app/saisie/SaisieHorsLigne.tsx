@@ -168,10 +168,13 @@ export function SaisieHorsLigne() {
           .from("ventes")
           .upsert(lignesBase, { onConflict: "id", ignoreDuplicates: true });
         if (error) throw error;
-      } catch {
+      } catch (erreur) {
         interrompu = true;
         restantes.push(vente);
-        setMessage("L'envoi a été interrompu. Les ventes restent sur ce téléphone et seront renvoyées automatiquement.");
+        // Détail de l'erreur renvoyée par la base, pour le diagnostic.
+        const detail = (erreur as { message?: string; code?: string })?.message ?? "erreur inconnue";
+        const code = (erreur as { code?: string })?.code;
+        setMessage(`L'envoi a été interrompu (${detail}${code ? `, code ${code}` : ""}). Les ventes restent sur ce téléphone et seront renvoyées automatiquement.`);
       }
       if (!interrompu) {
         // Vente envoyée : on ne la garde plus, sauf le client nouvellement créé déjà enregistré.
