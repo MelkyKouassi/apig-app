@@ -910,8 +910,8 @@ insert into reglements (date_reglement, tiers_id, montant, origine) select '2026
 insert into collaborateurs (nom, parts, matricule, fonction, mode_paiement) values ('Sali Ouattara', 0.5, 'AP 003', 'Commerciale', 'Espèces');
 insert into collaborateurs (nom, parts, matricule, fonction, mode_paiement) values ('Anne Zéan', 0.5, 'AP 004', 'Commerciale', 'Virement bancaire');
 insert into collaborateurs (nom, parts, matricule, fonction, mode_paiement) values ('Monique KOFFI', 0.5, 'AP 002', 'Commerciale', 'Chèque');
-insert into collaborateurs (nom, parts, matricule, fonction, mode_paiement) values ('Dr Joseph KASSI', 1.5, 'AP 001', 'Gérant', 'Chèque');
-insert into collaborateurs (nom, parts, matricule, fonction, mode_paiement) values ('Dr Kouassi Melchisedek B.', 1.0, 'AP 005', 'Commerciale', 'Mobile Money');
+insert into collaborateurs (nom, parts, matricule, fonction, mode_paiement) values ('Dr Joseph KASSI', 1.0, 'AP 001', 'Gérant', 'Chèque');
+insert into collaborateurs (nom, parts, matricule, fonction, mode_paiement) values ('Dr Kouassi Melchisedek B.', 1.5, 'AP 005', 'Commerciale', 'Mobile Money');
 insert into charges (libelle, nature, montant_habituel, ordre) values ('Loyer / local', 'fixe', 90000.0, 21);
 insert into charges (libelle, nature, montant_habituel, ordre) values ('Eau', 'fixe', 10000.0, 22);
 insert into charges (libelle, nature, montant_habituel, ordre) values ('Électricité', 'fixe', 10000.0, 23);
