@@ -197,6 +197,15 @@ export function SaisieHorsLigne() {
     setLignes((l) => l.map((x) => (x.cle === cle ? { ...x, ...champs } : x)));
   }
 
+  // Retire une vente restée sur le téléphone (par exemple un test ou une vente bloquée).
+  async function supprimerAttente(id: string) {
+    if (!window.confirm("Supprimer cette vente du téléphone ? Elle ne sera pas envoyée à la base.")) return;
+    const restantes = attente.filter((v) => v.id !== id);
+    await setAttente(restantes);
+    setAttenteState(restantes);
+    setMessage(null);
+  }
+
   function retirerLigne(cle: number) {
     setLignes((l) => (l.length > 1 ? l.filter((x) => x.cle !== cle) : l));
   }
@@ -372,7 +381,8 @@ export function SaisieHorsLigne() {
           <ul>
             {attente.map((v) => (
               <li key={v.id}>
-                {new Date(v.cree_le).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan" })} · {v.lignes.length} produit(s) · {v.mode_paiement === "credit" ? "crédit" : "comptant"}
+                <span>{new Date(v.cree_le).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan" })} · {v.lignes.length} produit(s) · {v.mode_paiement === "credit" ? "crédit" : "comptant"}</span>{" "}
+                <button type="button" className="secondaire petit" onClick={() => supprimerAttente(v.id)} disabled={envoi}>Supprimer</button>
               </li>
             ))}
           </ul>
