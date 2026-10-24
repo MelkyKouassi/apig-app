@@ -85,7 +85,10 @@ select {
   box-sizing: border-box;
 }
 .formulaire select, .formulaire input { width: 100%; box-sizing: border-box; }
-.formulaire select.choix-lieu { font-size: 0.9rem; }
+.choix-lieux { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.choix-lieux legend { font-weight: 600; margin-bottom: 6px; }
+.formulaire label.choix-lieu-item { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; font-size: 75%; padding: 8px 10px; border: 1px solid var(--bordure); border-radius: 8px; }
+.formulaire label.choix-lieu-item input { width: auto; padding: 0; margin: 0; }
 .lignes { display: flex; flex-direction: column; gap: 10px; }
 .ligne-vente { display: grid; grid-template-columns: 1fr 72px; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--bordure); border-radius: 8px; }
 .ligne-vente select { grid-column: 1 / -1; }

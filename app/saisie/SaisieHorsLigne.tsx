@@ -271,15 +271,22 @@ export function SaisieHorsLigne() {
         </p>
       ) : (
         <form onSubmit={enregistrer} className="formulaire">
-          <label>
-            Événement
-            <select className="choix-lieu" value={evenementId} onChange={(e) => setEvenementId(e.target.value)} required>
-              <option value="">-- Choisir --</option>
-              {ref.evenements.map((ev) => (
-                <option key={ev.id} value={ev.id}>{ev.nom}</option>
-              ))}
-            </select>
-          </label>
+          <fieldset className="choix-lieux">
+            <legend>Événement</legend>
+            {ref.evenements.map((ev) => (
+              <label key={ev.id} className="choix-lieu-item">
+                <input
+                  type="radio"
+                  name="evenement"
+                  value={ev.id}
+                  checked={evenementId === ev.id}
+                  onChange={() => setEvenementId(ev.id)}
+                  required
+                />
+                <span>{ev.nom}</span>
+              </label>
+            ))}
+          </fieldset>
 
           <label>
             Date de la vente
