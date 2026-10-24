@@ -164,7 +164,9 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 /* Navigation commune et sommaires de sections */
 /* Navigation : barre en bas sur téléphone, menu à gauche sur ordinateur (voir plus bas). */
 .barre-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: space-around; align-items: stretch; gap: 2px; padding: 2px 4px calc(2px + env(safe-area-inset-bottom)); background: var(--fond); border-top: 1px solid var(--bordure); transition: transform 0.25s ease; }
-.barre-nav.cachee, .barres-cachees .curseur-defilement { transform: translateY(110%); }
+.barre-nav.cachee { transform: translateY(110%); }
+/* Le curseur est remonté de 52 px du bas : il faut le descendre de sa hauteur plus cet écart. */
+.barres-cachees .curseur-defilement { transform: translateY(calc(100% + 60px)); }
 .curseur-defilement { transition: transform 0.25s ease; }
 .barre-groupe { position: relative; flex: 1 1 0; min-width: 0; }
 .barre-accueil, .barre-titre { display: block; width: 100%; box-sizing: border-box; padding: 5px 2px; line-height: 1.2; background: none; border: 0; color: var(--accent); font: inherit; font-size: 0.75rem; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; }
