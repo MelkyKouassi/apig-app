@@ -67,8 +67,10 @@ async function ContenuVentes({ searchParams }: { searchParams: Promise<{ date?: 
   return (
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
-      <h1>Ventes du jour</h1>
-      <RechercheLoupe />
+      <div className="entete-page">
+        <h1>Ventes du jour</h1>
+        <RechercheLoupe />
+      </div>
 
       <form method="get" className="filtre-date">
         <input type="date" name="date" defaultValue={date} />

@@ -100,8 +100,10 @@ async function ContenuDepotVente() {
   return (
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
-      <h1>Dépôt-vente</h1>
-      <RechercheLoupe />
+      <div className="entete-page">
+        <h1>Dépôt-vente</h1>
+        <RechercheLoupe />
+      </div>
       {estGerant && <Link href="/depot-vente/nouveau" className="bouton">Nouveau dépôt</Link>}
       <p className="total">Reste à recevoir des dépôts : {francs(totalReste)} ({liste.length} destinataire(s))</p>
       {liste.length === 0 && <p className="note">Aucun dépôt enregistré.</p>}

@@ -125,8 +125,10 @@ async function ContenuCreances() {
   return (
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
-      <h1>Créances</h1>
-      <RechercheLoupe />
+      <div className="entete-page">
+        <h1>Créances</h1>
+        <RechercheLoupe />
+      </div>
       <Sommaire items={[
         { id: "clients", libelle: "Clients à crédit" },
         { id: "depot-vente", libelle: "Dépôt-vente" },
