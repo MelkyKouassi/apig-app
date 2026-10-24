@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { FormulaireCollaborateur, FormulaireEntreprise, FormulaireParametres, FormulaireProfil } from "./Formulaires";
+import { FormulaireCollaborateur, FormulaireEntreprise, FormulaireLienCommercial, FormulaireParametres, FormulaireProfil } from "./Formulaires";
 import { dateHeureFr } from "@/lib/dates";
 import { Sommaire } from "@/components/Sommaire";
 
@@ -53,15 +53,17 @@ async function ContenuAdministration() {
   const { data: profil } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (profil?.role !== "gerant") redirect("/");
 
-  const [{ data: entreprise }, { data: parametres }, { data: collabs }, { data: profils }, { data: audit }] = await Promise.all([
+  const [{ data: entreprise }, { data: parametres }, { data: collabs }, { data: profils }, { data: audit }, { data: commerciaux }] = await Promise.all([
     supabase.from("entreprise").select("*").limit(1).maybeSingle(),
     supabase.from("parametres").select("*").limit(1).maybeSingle(),
     supabase.from("collaborateurs").select("id, nom, parts, matricule, fonction, date_entree, mode_paiement, numero_cnps, user_id, actif").order("nom"),
     supabase.from("profiles").select("id, nom_complet, role, actif").order("nom_complet"),
     supabase.from("audit_log").select("id, table_name, row_id, action, old_data, new_data, user_id, created_at").order("created_at", { ascending: false }).limit(100),
+    supabase.from("commerciaux").select("id, nom, user_id, actif").order("nom"),
   ]);
   const noms = new Map((profils ?? []).map((p) => [p.id, p.nom_complet as string]));
   const comptes = (profils ?? []).filter((p) => p.role === "collaboratrice").map((p) => ({ id: p.id, nom: p.nom_complet as string }));
+  const comptesCommerciaux = (profils ?? []).filter((p) => p.role === "commercial").map((p) => ({ id: p.id, nom: p.nom_complet as string }));
 
   return (
     <main className="page-centree">
@@ -71,6 +73,7 @@ async function ContenuAdministration() {
       </p>
       <Sommaire items={[
         { id: "comptes", libelle: "Comptes" },
+        { id: "commerciaux", libelle: "Commerciaux" },
         { id: "entreprise", libelle: "Entreprise" },
         { id: "collaborateurs", libelle: "Collaborateurs" },
         { id: "parametres", libelle: "Paramètres" },
@@ -101,6 +104,21 @@ async function ContenuAdministration() {
             </details>
           ))}
         </details>
+      </section>
+
+      <section id="commerciaux" style={{ marginTop: 24 }}>
+        <p className="entete"><strong>Commerciaux : compte de connexion</strong></p>
+        <p className="entete" style={{ fontSize: "0.9rem" }}>
+          Reliez chaque commercial à son compte, pour qu&apos;il puisse enregistrer ses ventes et voir ses primes.
+        </p>
+        {(commerciaux ?? []).map((c) => (
+          <details key={c.id} style={{ margin: "8px 0" }}>
+            <summary>
+              {c.nom}{c.user_id ? ` · relié à ${noms.get(c.user_id) ?? "un compte"}` : " · sans compte"}
+            </summary>
+            <FormulaireLienCommercial id={c.id} userId={c.user_id} comptes={comptesCommerciaux} />
+          </details>
+        ))}
       </section>
 
       <section id="entreprise" style={{ marginTop: 24 }}>

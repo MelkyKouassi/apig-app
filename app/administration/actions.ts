@@ -99,6 +99,26 @@ export async function enregistrerParametres(_etat: EtatAdmin, f: FormData): Prom
   return { ok: true };
 }
 
+// Relie une fiche de commercial à un compte de connexion (ou la délie si le compte est vide).
+export async function enregistrerLienCommercial(_etat: EtatAdmin, f: FormData): Promise<EtatAdmin> {
+  const s = await gerantConnecte();
+  if ("erreur" in s) return { ok: false, erreur: s.erreur };
+  const commercialId = String(f.get("commercial_id") ?? "");
+  const userId = String(f.get("user_id") ?? "");
+  if (!commercialId) return { ok: false, erreur: "Commercial introuvable." };
+
+  const { error } = await s.supabase
+    .from("commerciaux")
+    .update({ user_id: userId || null })
+    .eq("id", commercialId);
+  if (error) return { ok: false, erreur: "Ce compte est peut-être déjà relié à un autre commercial." };
+
+  revalidatePath("/administration");
+  revalidatePath("/ventes/nouvelle");
+  revalidatePath("/mes-ventes");
+  return { ok: true };
+}
+
 export async function enregistrerCollaborateur(_etat: EtatAdmin, f: FormData): Promise<EtatAdmin> {
   const s = await gerantConnecte();
   if ("erreur" in s) return { ok: false, erreur: s.erreur };

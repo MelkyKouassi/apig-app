@@ -4,10 +4,31 @@ import { useActionState } from "react";
 import {
   enregistrerCollaborateur,
   enregistrerEntreprise,
+  enregistrerLienCommercial,
   enregistrerParametres,
   enregistrerProfil,
   type EtatAdmin,
 } from "./actions";
+
+// Relie une fiche de commercial à son compte de connexion (sans compte : la fiche reste utilisable pour les primes).
+export function FormulaireLienCommercial({ id, userId, comptes }: { id: string; userId: string | null; comptes: { id: string; nom: string }[] }) {
+  const [etat, action, enCours] = useActionState<EtatAdmin, FormData>(enregistrerLienCommercial, null);
+  return (
+    <form action={action} className="formulaire">
+      <input type="hidden" name="commercial_id" value={id} />
+      <label>
+        Compte de connexion
+        <select name="user_id" defaultValue={userId ?? ""}>
+          <option value="">-- Aucun compte --</option>
+          {comptes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+        </select>
+      </label>
+      <button type="submit" className="secondaire" disabled={enCours}>{enCours ? "Enregistrement..." : "Enregistrer le lien"}</button>
+      {etat && !etat.ok && <p className="erreur">{etat.erreur}</p>}
+      {etat?.ok && <p className="note">Lien enregistré.</p>}
+    </form>
+  );
+}
 
 const pourcent = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(Math.round(Number(v) * 10000) / 100));
 
