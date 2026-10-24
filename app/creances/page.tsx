@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { RechercheLoupe } from "@/components/RechercheLoupe";
 import { FormulaireReglement } from "./FormulaireReglement";
 import { FormulaireReglementDepot } from "@/app/depot-vente/FormulaireReglementDepot";
 import { dateFr, dateHeureFr } from "@/lib/dates";
@@ -125,6 +126,7 @@ async function ContenuCreances() {
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Créances</h1>
+      <RechercheLoupe />
       <Sommaire items={[
         { id: "clients", libelle: "Clients à crédit" },
         { id: "depot-vente", libelle: "Dépôt-vente" },

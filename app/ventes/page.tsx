@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { RechercheLoupe } from "@/components/RechercheLoupe";
 import { BoutonAnnuler } from "./BoutonAnnuler";
 import { FormulaireModifierLigne } from "./FormulaireModifierLigne";
 
@@ -67,6 +68,7 @@ async function ContenuVentes({ searchParams }: { searchParams: Promise<{ date?: 
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Ventes du jour</h1>
+      <RechercheLoupe />
 
       <form method="get" className="filtre-date">
         <input type="date" name="date" defaultValue={date} />

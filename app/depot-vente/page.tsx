@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { RechercheLoupe } from "@/components/RechercheLoupe";
 import { FormulaireReglementDepot } from "./FormulaireReglementDepot";
 import { FormulaireQuantiteVendue, FormulaireRestitution } from "./FormulairesLigneDepot";
 import { dateFr, dateHeureFr } from "@/lib/dates";
@@ -100,6 +101,7 @@ async function ContenuDepotVente() {
     <main className="page-centree">
       <Link href="/" className="retour">← Accueil</Link>
       <h1>Dépôt-vente</h1>
+      <RechercheLoupe />
       {estGerant && <Link href="/depot-vente/nouveau" className="bouton">Nouveau dépôt</Link>}
       <p className="total">Reste à recevoir des dépôts : {francs(totalReste)} ({liste.length} destinataire(s))</p>
       {liste.length === 0 && <p className="note">Aucun dépôt enregistré.</p>}
