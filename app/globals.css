@@ -162,7 +162,31 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 .bandeau-controles { display: block; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--bordure); background: var(--surface); font-weight: 600; }
 
 /* Navigation commune et sommaires de sections */
-.barre-nav { display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; padding: 8px 12px; border-bottom: 1px solid var(--bordure); background: var(--fond); position: sticky; top: 0; z-index: 20; }
+/* Navigation : barre en bas sur téléphone, menu à gauche sur ordinateur (voir plus bas). */
+.barre-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: space-around; align-items: stretch; gap: 2px; padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); background: var(--fond); border-top: 1px solid var(--bordure); }
+.barre-groupe { position: relative; flex: 1 1 0; min-width: 0; }
+.barre-accueil, .barre-titre { display: block; width: 100%; box-sizing: border-box; padding: 10px 2px; background: none; border: 0; color: var(--accent); font: inherit; font-size: 0.8rem; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; }
+.barre-panneau { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); min-width: 200px; flex-direction: column; gap: 4px; padding: 8px; margin-bottom: 6px; background: var(--surface); border: 1px solid var(--bordure); border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
+.barre-groupe.ouvert .barre-panneau { display: flex; }
+.barre-panneau .barre-lien { display: block; padding: 10px 12px; border: 0; border-radius: 8px; background: var(--fond); }
+.barre-lien-direct { display: none; }
+body { padding-bottom: 72px; }
+.curseur-defilement { bottom: 72px; }
+
+/* Ordinateur : menu fixe à gauche, toutes les rubriques visibles */
+@media (min-width: 900px) {
+  .barre-nav { top: 0; right: auto; bottom: 0; width: 220px; flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 0; padding: 16px 12px; border-top: 0; border-right: 1px solid var(--bordure); overflow-y: auto; }
+  .barre-groupe { flex: none; }
+  .barre-accueil, .barre-titre { text-align: left; padding: 8px 6px; }
+  .barre-accueil { font-size: 1rem; }
+  .barre-titre { margin-top: 12px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--texte-doux); pointer-events: none; }
+  .barre-panneau { display: flex; position: static; transform: none; min-width: 0; margin: 0; padding: 0; gap: 2px; background: none; border: 0; box-shadow: none; }
+  .barre-panneau .barre-lien { padding: 6px 6px; background: none; color: var(--accent); }
+  body { padding-bottom: 0; padding-left: 240px; }
+  .curseur-defilement { bottom: 0; left: 240px; }
+}
+
+/* Impression : pas de navigation, pas de curseur, pas de sommaire sur le papier */
 .barre-lien, .sommaire a { color: var(--accent); text-decoration: none; padding: 6px 10px; border: 1px solid var(--bordure); border-radius: 999px; font-size: 0.9rem; flex: 0 0 auto; }
 
 /* Sommaire des sections : défile avec la page, sous la barre de navigation collée en haut */

@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { BarreMenu, type Groupe, type Lien } from "./BarreMenu";
 
-// Barre de navigation commune, présente sur chaque page. Elle n'affiche que les écrans du profil connecté.
+// Navigation commune, présente sur chaque page. Elle n'affiche que les écrans du profil connecté.
+// Sur téléphone : barre en bas, une rubrique s'ouvre au-dessus. Sur ordinateur : menu latéral.
 export async function BarreNavigation() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -10,32 +11,46 @@ export async function BarreNavigation() {
   const { data: profil } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   const role = profil?.role ?? "";
 
-  const liens: { href: string; libelle: string }[] = [{ href: "/", libelle: "Accueil" }];
-  if (role === "collaboratrice") liens.push({ href: "/mes-bulletins", libelle: "Mes bulletins" });
+  const groupes: Groupe[] = [];
+  let directs: Lien[] = [];
+
+  if (role === "collaboratrice") {
+    directs = [{ href: "/mes-bulletins", libelle: "Mes bulletins" }];
+  }
   if (role === "commercial") {
-    liens.push({ href: "/saisie", libelle: "Nouvelle vente" }, { href: "/mes-ventes", libelle: "Mes ventes" });
+    groupes.push({ titre: "Ventes", liens: [
+      { href: "/saisie", libelle: "Nouvelle vente" },
+      { href: "/mes-ventes", libelle: "Mes ventes" },
+    ] });
   }
   if (role === "gerant" || role === "comptable") {
-    liens.push(
-      { href: "/ventes", libelle: "Ventes du jour" },
-      { href: role === "gerant" ? "/saisie" : "/ventes/nouvelle", libelle: "Nouvelle vente" },
-      { href: "/depot-vente", libelle: "Dépôt-vente" },
-      { href: "/creances", libelle: "Créances" },
-      { href: "/stock", libelle: "Stock" },
-      { href: "/primes", libelle: "Primes" },
-      { href: "/tableau-de-bord", libelle: "Tableau de bord" },
-      { href: "/controles", libelle: "Contrôles" },
-      { href: "/paie", libelle: "Paie" },
-      { href: "/export", libelle: "Exports" },
+    groupes.push(
+      { titre: "Ventes", liens: [
+        { href: "/ventes", libelle: "Ventes du jour" },
+        { href: role === "gerant" ? "/saisie" : "/ventes/nouvelle", libelle: "Nouvelle vente" },
+      ] },
+      { titre: "Clients", liens: [
+        { href: "/depot-vente", libelle: "Dépôt-vente" },
+        { href: "/creances", libelle: "Créances" },
+      ] },
+      { titre: "Gestion", liens: [
+        { href: "/stock", libelle: "Stock" },
+        { href: "/primes", libelle: "Primes" },
+        { href: "/tableau-de-bord", libelle: "Tableau de bord" },
+        { href: "/controles", libelle: "Contrôles" },
+      ] },
+      { titre: "Paie", liens: [
+        { href: "/paie", libelle: "Paie" },
+        { href: "/export", libelle: "Exports" },
+      ] },
     );
   }
-  if (role === "gerant") liens.push({ href: "/catalogue", libelle: "Catalogue" }, { href: "/administration", libelle: "Administration" });
+  if (role === "gerant") {
+    groupes.push({ titre: "Administration", liens: [
+      { href: "/catalogue", libelle: "Catalogue et prix" },
+      { href: "/administration", libelle: "Administration" },
+    ] });
+  }
 
-  return (
-    <nav className="barre-nav" aria-label="Navigation principale">
-      {liens.map((l) => (
-        <Link key={l.href} href={l.href} className="barre-lien">{l.libelle}</Link>
-      ))}
-    </nav>
-  );
+  return <BarreMenu groupes={groupes} directs={directs} />;
 }
