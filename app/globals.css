@@ -164,7 +164,8 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 /* Navigation commune et sommaires de sections */
 /* Navigation : barre en bas sur téléphone, menu à gauche sur ordinateur (voir plus bas). */
 .barre-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: space-around; align-items: stretch; gap: 2px; padding: 2px 4px calc(2px + env(safe-area-inset-bottom)); background: var(--fond); border-top: 1px solid var(--bordure); transition: transform 0.25s ease; }
-.barre-nav.cachee { transform: translateY(110%); }
+.barre-nav.cachee, .barres-cachees .curseur-defilement { transform: translateY(110%); }
+.curseur-defilement { transition: transform 0.25s ease; }
 .barre-groupe { position: relative; flex: 1 1 0; min-width: 0; }
 .barre-accueil, .barre-titre { display: block; width: 100%; box-sizing: border-box; padding: 5px 2px; line-height: 1.2; background: none; border: 0; color: var(--accent); font: inherit; font-size: 0.75rem; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; }
 .barre-panneau { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); min-width: 200px; flex-direction: column; gap: 4px; padding: 8px; margin-bottom: 6px; background: var(--surface); border: 1px solid var(--bordure); border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
@@ -176,7 +177,7 @@ body { padding-bottom: 52px; }
 
 /* Ordinateur : menu fixe à gauche, toutes les rubriques visibles */
 @media (min-width: 900px) {
-  .barre-nav.cachee { transform: none; }
+  .barre-nav.cachee, .barres-cachees .curseur-defilement { transform: none; }
   .barre-nav { top: 0; right: auto; bottom: 0; width: 220px; flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 0; padding: 16px 12px; border-top: 0; border-right: 1px solid var(--bordure); overflow-y: auto; }
   .barre-groupe { flex: none; }
   .barre-accueil, .barre-titre { text-align: left; padding: 8px 6px; }

@@ -21,6 +21,12 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
     if (ouvert !== null) setCachee(false);
   }, [ouvert]);
 
+  // Masque aussi le curseur ▲ ▼ du bas, pour que les deux barres disparaissent ensemble.
+  useEffect(() => {
+    document.body.classList.toggle("barres-cachees", cachee);
+    return () => document.body.classList.remove("barres-cachees");
+  }, [cachee]);
+
   useEffect(() => {
     let minuterie: number | undefined;
     const reveiller = () => {
