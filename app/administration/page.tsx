@@ -77,10 +77,6 @@ async function ContenuAdministration() {
         { id: "journal", libelle: "Journal d'audit" },
       ]} />
 
-      <nav className="sommaire" aria-label="Sections">
-        <a href="#comptes">Comptes</a><a href="#entreprise">Entreprise</a><a href="#collaborateurs">Collaborateurs</a><a href="#parametres">Paramètres</a><a href="#journal">Journal</a>
-      </nav>
-
       <section id="comptes">
         <p className="entete"><strong>Comptes utilisateurs</strong></p>
         <p className="entete" style={{ fontSize: "0.9rem" }}>

@@ -134,10 +134,6 @@ async function ContenuCreances() {
       <p className="total">Reste à recouvrer : {francs(totalClients + totalDepots)} ({lignesClients.length + lignesDepots.length} créancier(s))</p>
       <p className="note">Clients à crédit : {francs(totalClients)} · Dépôt-vente : {francs(totalDepots)}</p>
 
-      <nav className="sommaire" aria-label="Sections">
-        <a href="#clients">Clients à crédit</a><a href="#depot-vente">Dépôt-vente</a>
-      </nav>
-
       <h2 id="clients">Clients à crédit</h2>
       {lignesClients.length === 0 && <p className="note">Aucun client ne doit encore de l&apos;argent.</p>}
       {lignesClients.map((l) => {
