@@ -85,6 +85,7 @@ select {
   box-sizing: border-box;
 }
 .formulaire select, .formulaire input { width: 100%; box-sizing: border-box; }
+.formulaire select.choix-lieu { font-size: 0.9rem; }
 .lignes { display: flex; flex-direction: column; gap: 10px; }
 .ligne-vente { display: grid; grid-template-columns: 1fr 72px; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--bordure); border-radius: 8px; }
 .ligne-vente select { grid-column: 1 / -1; }
