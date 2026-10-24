@@ -29,7 +29,7 @@ export async function BarreNavigation() {
       { href: "/export", libelle: "Exports" },
     );
   }
-  if (role === "gerant") liens.push({ href: "/administration", libelle: "Administration" });
+  if (role === "gerant") liens.push({ href: "/catalogue", libelle: "Catalogue" }, { href: "/administration", libelle: "Administration" });
 
   return (
     <nav className="barre-nav" aria-label="Navigation principale">
