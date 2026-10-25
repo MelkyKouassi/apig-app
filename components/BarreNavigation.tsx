@@ -38,6 +38,7 @@ export async function BarreNavigation() {
         { href: "/primes", libelle: "Primes" },
         { href: "/tableau-de-bord", libelle: "Tableau de bord" },
         { href: "/controles", libelle: "Contrôles" },
+        ...(role === "gerant" ? [{ href: "/catalogue", libelle: "Catalogue et prix" }] : []),
       ] },
       { titre: "Paie", liens: [
         { href: "/paie", libelle: "Paie" },
@@ -47,7 +48,6 @@ export async function BarreNavigation() {
   }
   if (role === "gerant") {
     groupes.push({ titre: "Administration", liens: [
-      { href: "/catalogue", libelle: "Catalogue et prix" },
       { href: "/administration", libelle: "Administration" },
     ] });
   }
