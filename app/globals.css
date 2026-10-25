@@ -177,6 +177,7 @@ a.lien { display: block; text-align: center; text-decoration: none; padding: 14p
 .barre-lien-direct { display: none; }
 body { padding-bottom: 52px; }
 .curseur-defilement { bottom: 52px; }
+.rubrique-ouverte .curseur-defilement { display: none; }
 
 /* Ordinateur : menu fixe à gauche, toutes les rubriques visibles */
 @media (min-width: 900px) {

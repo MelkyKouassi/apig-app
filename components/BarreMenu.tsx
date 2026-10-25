@@ -21,6 +21,12 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
     if (ouvert !== null) setCachee(false);
   }, [ouvert]);
 
+  // Rubrique ouverte : le curseur ▲ ▼ est masqué, sinon il cache la liste.
+  useEffect(() => {
+    document.body.classList.toggle("rubrique-ouverte", ouvert !== null);
+    return () => document.body.classList.remove("rubrique-ouverte");
+  }, [ouvert]);
+
   // Masque aussi le curseur ▲ ▼ du bas, pour que les deux barres disparaissent ensemble.
   useEffect(() => {
     document.body.classList.toggle("barres-cachees", cachee);
