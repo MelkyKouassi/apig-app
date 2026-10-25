@@ -97,11 +97,12 @@ export function SaisieHorsLigne() {
     await setProfil(nouveauProfil);
     setProfilState(nouveauProfil);
 
-    const [ev, pro, px, pxe, com, tie] = await Promise.all([
+    const [ev, pro, px, pxe, mod, com, tie] = await Promise.all([
       supabase.from("evenements").select("id, nom, est_point_de_vente").order("nom"),
       supabase.from("produits").select("id, nom, prix_base").eq("actif", true).order("nom"),
-      supabase.from("prix").select("produit_id, prix_unitaire, date_effet"),
-      supabase.from("prix_evenement").select("produit_id, evenement_id, prix_unitaire, date_effet"),
+      supabase.from("prix").select("produit_id, prix_unitaire, date_effet, type_prix"),
+      supabase.from("prix_evenement").select("produit_id, evenement_id, prix_unitaire, date_effet, type_prix"),
+      supabase.from("mode_prix").select("date_effet, mode"),
       supabase.from("commerciaux").select("id, nom").eq("actif", true).order("nom"),
       supabase.from("tiers").select("id, nom").order("nom"),
     ]);
@@ -111,6 +112,7 @@ export function SaisieHorsLigne() {
       produits: (pro.data ?? []) as Referentiel["produits"],
       prix: (px.data ?? []) as Referentiel["prix"],
       prix_evenement: (pxe.data ?? []) as Referentiel["prix_evenement"],
+      modes: (mod.data ?? []) as Referentiel["modes"],
       commerciaux: (com.data ?? []) as Referentiel["commerciaux"],
       tiers: (tie.data ?? []) as Referentiel["tiers"],
       maj: new Date().toISOString(),

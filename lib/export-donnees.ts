@@ -335,7 +335,7 @@ export async function construireExport(jeu: Jeu, supabase: SupabaseClient): Prom
 
   // Sauvegarde complète : chaque table brute, sans filtre, pour pouvoir tout reconstituer.
   const tables = [
-    "entreprise", "parametres", "produits", "prix", "prix_evenement", "evenements", "baremes_prime",
+    "entreprise", "parametres", "produits", "prix", "prix_evenement", "mode_prix", "evenements", "baremes_prime",
     "productions", "primes_manuelles", "commerciaux", "tiers", "ventes", "depenses", "depots",
     "restitutions", "reglements", "collaborateurs", "versements", "charges", "charges_mensuelles", "audit_log",
   ];

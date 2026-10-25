@@ -1,11 +1,32 @@
 "use client";
 
 import { useActionState } from "react";
-import { ajouterProduit, enregistrerPrix, type EtatCatalogue } from "./actions";
+import { ajouterProduit, enregistrerMode, enregistrerPrix, type EtatCatalogue } from "./actions";
 
 type Option = { id: string; nom: string };
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
+
+export function FormulaireMode() {
+  const [etat, action, enCours] = useActionState<EtatCatalogue, FormData>(enregistrerMode, null);
+  return (
+    <form action={action} className="formulaire">
+      <label>
+        Prix à appliquer
+        <select name="mode" defaultValue="normal">
+          <option value="normal">Prix normal</option>
+          <option value="promotionnel">Prix promotionnel</option>
+        </select>
+      </label>
+      <label>
+        À partir du
+        <input type="date" name="date_effet" defaultValue={aujourdhui()} required />
+      </label>
+      <button type="submit" disabled={enCours}>{enCours ? "Enregistrement..." : "Appliquer ce réglage"}</button>
+      {etat && <p className={etat.ok ? "note" : "erreur"}>{etat.ok ? etat.message : etat.erreur}</p>}
+    </form>
+  );
+}
 
 export function FormulairePrix({ produits, evenements }: { produits: Option[]; evenements: Option[] }) {
   const [etat, action, enCours] = useActionState<EtatCatalogue, FormData>(enregistrerPrix, null);
@@ -16,6 +37,13 @@ export function FormulairePrix({ produits, evenements }: { produits: Option[]; e
         <select name="produit_id" required defaultValue="">
           <option value="" disabled>-- Choisir --</option>
           {produits.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+        </select>
+      </label>
+      <label>
+        Type de prix
+        <select name="type_prix" defaultValue="normal">
+          <option value="normal">Prix normal</option>
+          <option value="promotionnel">Prix promotionnel</option>
         </select>
       </label>
       <label>
@@ -48,8 +76,12 @@ export function FormulaireProduit() {
         <input name="nom" required />
       </label>
       <label>
-        Prix de base (F CFA)
+        Prix normal (F CFA)
         <input name="prix_base" inputMode="numeric" required />
+      </label>
+      <label>
+        Prix promotionnel (F CFA, facultatif)
+        <input name="prix_promotionnel" inputMode="numeric" placeholder="Vide : le prix normal s'applique" />
       </label>
       <label>
         Coefficient de cession

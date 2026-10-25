@@ -1,11 +1,14 @@
 import { get, set } from "idb-keyval";
 
 // Données de référence copiées sur le téléphone, pour saisir sans réseau.
+export type TypePrix = "normal" | "promotionnel";
+
 export type Referentiel = {
   evenements: { id: string; nom: string; est_point_de_vente: boolean | null }[];
   produits: { id: string; nom: string; prix_base: number | null }[];
-  prix: { produit_id: string; prix_unitaire: number; date_effet: string }[];
-  prix_evenement: { produit_id: string; evenement_id: string; prix_unitaire: number; date_effet: string }[];
+  prix: { produit_id: string; prix_unitaire: number; date_effet: string; type_prix: TypePrix }[];
+  prix_evenement: { produit_id: string; evenement_id: string; prix_unitaire: number; date_effet: string; type_prix: TypePrix }[];
+  modes: { date_effet: string; mode: TypePrix }[];
   commerciaux: { id: string; nom: string }[];
   tiers: { id: string; nom: string }[];
   maj: string;
@@ -32,17 +35,33 @@ export const setProfil = (p: Profil) => set("profil", p);
 export const getAttente = async () => (await get<VenteEnAttente[]>("attente")) ?? [];
 export const setAttente = (liste: VenteEnAttente[]) => set("attente", liste);
 
-// Même règle que la base (fn_prix_vente) : prix de l'événement, puis prix à la date, puis prix de base.
-export function prixLocal(ref: Referentiel, produitId: string, evenementId: string, date: string): number {
-  const prixEvt = ref.prix_evenement
-    .filter((p) => p.produit_id === produitId && p.evenement_id === evenementId && p.date_effet <= date)
+// Mode de prix en vigueur à une date (normal par défaut).
+function modeA(ref: Referentiel, date: string): TypePrix {
+  const m = ref.modes
+    .filter((x) => x.date_effet <= date)
     .sort((a, b) => (a.date_effet < b.date_effet ? 1 : -1))[0];
-  if (prixEvt) return Number(prixEvt.prix_unitaire);
+  return m?.mode ?? "normal";
+}
 
-  const prixDate = ref.prix
-    .filter((p) => p.produit_id === produitId && p.date_effet <= date)
-    .sort((a, b) => (a.date_effet < b.date_effet ? 1 : -1))[0];
-  if (prixDate) return Number(prixDate.prix_unitaire);
+// Même règle que la base (fn_prix_vente) : prix du lieu, puis historique, puis prix de base.
+// À chaque étape, le prix du mode en vigueur ; sans prix promotionnel, le prix normal s'applique.
+export function prixLocal(ref: Referentiel, produitId: string, evenementId: string, date: string): number {
+  const type = modeA(ref, date);
+  const types: TypePrix[] = type === "normal" ? ["normal"] : [type, "normal"];
+
+  for (const t of types) {
+    const prixEvt = ref.prix_evenement
+      .filter((p) => p.produit_id === produitId && p.evenement_id === evenementId && p.type_prix === t && p.date_effet <= date)
+      .sort((a, b) => (a.date_effet < b.date_effet ? 1 : -1))[0];
+    if (prixEvt) return Number(prixEvt.prix_unitaire);
+  }
+
+  for (const t of types) {
+    const prixDate = ref.prix
+      .filter((p) => p.produit_id === produitId && p.type_prix === t && p.date_effet <= date)
+      .sort((a, b) => (a.date_effet < b.date_effet ? 1 : -1))[0];
+    if (prixDate) return Number(prixDate.prix_unitaire);
+  }
 
   const evenement = ref.evenements.find((e) => e.id === evenementId);
   if (evenement?.est_point_de_vente) return 0;
