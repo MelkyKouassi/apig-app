@@ -36,7 +36,6 @@ const REFERENCE_2026 = {
   creances: 1258278,
 };
 
-const MAX_EXCLUS = 8;
 type Params = { debutA?: string; finA?: string; debutB?: string; finB?: string; exclus?: string | string[]; portee?: string; lieu?: string };
 const PORTEES: { valeur: Portee; libelle: string }[] = [
   { valeur: "total", libelle: "Total" },
@@ -104,7 +103,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
   const debutB = sp.debutB ?? "2025-01-01";
   const finB = sp.finB ?? "2025-12-31";
   const exclusBruts = Array.isArray(sp.exclus) ? sp.exclus : sp.exclus ? [sp.exclus] : [];
-  const exclus = new Set(exclusBruts.slice(0, MAX_EXCLUS));
+  const exclus = new Set(exclusBruts);
   const portee: Portee = PORTEES.some((p) => p.valeur === sp.portee) ? (sp.portee as Portee) : "total";
   const lieuChoisi = sp.lieu ?? "";
 
@@ -231,7 +230,7 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
           </select>
         </fieldset>
         <fieldset>
-          <legend>Produits exclus du CA hors exclusions (max {MAX_EXCLUS})</legend>
+          <legend>Produits exclus du CA hors exclusions</legend>
           {produitsChoisis.map((p) => (
             <label key={p.id} className="case">
               <input type="checkbox" name="exclus" value={p.id} defaultChecked={exclus.has(p.id)} /> {p.nom}
