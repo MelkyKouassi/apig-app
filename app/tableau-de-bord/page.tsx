@@ -308,8 +308,23 @@ async function ContenuTableauDeBord({ searchParams }: { searchParams: Promise<Pa
 
       <section id="hors-produits" className="carte-vente">
         <p className="entete"><strong>CA et bénéfice hors produits exclus (période A)</strong></p>
-        <p className="note">CA total {francs(hors.caTotal)} · CA hors exclusions {francs(hors.caHors)} · dépenses {francs(hors.depenses)} · bénéfice hors exclusions {francs(hors.beneficeHors)}</p>
-        <p className="note">{exclus.size === 0 ? "Aucun produit exclu." : `${exclus.size} produit(s) exclu(s). Les dépenses restent intégralement prises en compte.`}</p>
+        <p className="note">
+          {exclus.size === 0
+            ? "Aucun produit exclu : les deux colonnes sont identiques."
+            : `${exclus.size} produit(s) exclu(s) : ${[...exclus].map((id) => nomsProduits.get(id) ?? "produit").join(", ")}. Les dépenses restent intégralement prises en compte.`}
+        </p>
+        <div style={{ overflowX: "auto" }}>
+          <table className="tableau">
+            <thead><tr><th>Indicateur</th><th className="nombre">Tous les produits</th><th className="nombre">Hors exclus</th><th className="nombre">Écart</th></tr></thead>
+            <tbody>
+              <tr><td>CA</td><td className="nombre">{francs(hors.tous.ca)}</td><td className="nombre">{francs(hors.hors.ca)}</td><td className="nombre">{francs(hors.hors.ca - hors.tous.ca)}</td></tr>
+              <tr><td>Nombre de ventes (lignes)</td><td className="nombre">{hors.tous.ventes}</td><td className="nombre">{hors.hors.ventes}</td><td className="nombre">{hors.hors.ventes - hors.tous.ventes}</td></tr>
+              <tr><td>Unités vendues</td><td className="nombre">{hors.tous.unites}</td><td className="nombre">{hors.hors.unites}</td><td className="nombre">{hors.hors.unites - hors.tous.unites}</td></tr>
+              <tr><td>Dépenses</td><td className="nombre">{francs(hors.tous.depenses)}</td><td className="nombre">{francs(hors.hors.depenses)}</td><td className="nombre">0 F</td></tr>
+              <tr><td>Bénéfice (CA − dépenses)</td><td className="nombre">{francs(hors.tous.benefice)}</td><td className="nombre">{francs(hors.hors.benefice)}</td><td className="nombre">{francs(hors.hors.benefice - hors.tous.benefice)}</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section id="produits" className="carte-vente">

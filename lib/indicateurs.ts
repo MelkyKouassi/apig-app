@@ -103,18 +103,24 @@ export function calculerHorsProduits(
   exclus: Set<string>,
 ) {
   const dansPeriode = (d: string) => d >= debut && d <= fin;
-  let caTotal = 0;
-  let caHors = 0;
+  // Deux colonnes : tous les produits, et hors produits exclus. Mêmes ventes, sans les lignes exclues.
+  const tous = { ventes: 0, unites: 0, ca: 0 };
+  const hors = { ventes: 0, unites: 0, ca: 0 };
   for (const v of ventes) {
     if (!dansPeriode(v.date_vente)) continue;
     const m = Number(v.montant ?? 0);
-    caTotal += m;
-    if (!exclus.has(v.produit_id)) caHors += m;
+    const q = Number(v.quantite ?? 0);
+    tous.ventes += 1; tous.unites += q; tous.ca += m;
+    if (!exclus.has(v.produit_id)) { hors.ventes += 1; hors.unites += q; hors.ca += m; }
   }
   const dep = depenses
     .filter((d) => dansPeriode(d.date_depense))
     .reduce((s, d) => s + Number(d.montant ?? 0), 0);
-  return { caTotal, caHors, depenses: dep, beneficeHors: caHors - dep };
+  return {
+    tous: { ...tous, depenses: dep, benefice: tous.ca - dep },
+    hors: { ...hors, depenses: dep, benefice: hors.ca - dep },
+    caExclu: tous.ca - hors.ca,
+  };
 }
 
 // Analyse par produit sur une période : unités, CA, prix manquants et production.
