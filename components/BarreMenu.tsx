@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 export type Lien = { href: string; libelle: string };
 export type Groupe = { titre: string; liens: Lien[] };
 
-const DELAI_MASQUAGE_MS = 3000;
+const DELAI_MASQUAGE_MS = 5000;
 
 // Menu commun. Téléphone : une barre en bas, chaque rubrique s'ouvre au-dessus.
 // La barre se masque après quelques secondes sans contact et revient au moindre toucher.

@@ -34,6 +34,7 @@ export async function BarreNavigation() {
         { href: "/creances", libelle: "Créances" },
       ] },
       { titre: "Gestion", liens: [
+        { href: "/depenses", libelle: "Dépenses" },
         { href: "/stock", libelle: "Stock" },
         { href: "/primes", libelle: "Primes" },
         { href: "/tableau-de-bord", libelle: "Tableau de bord" },
