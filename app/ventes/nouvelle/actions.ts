@@ -8,7 +8,7 @@ export type ResultatVente =
   | { ok: false; erreur: string }
   | null;
 
-type LigneSaisie = { produit_id: string; quantite: number };
+type LigneSaisie = { produit_id: string; quantite: number; remise_pct?: number | null; remise_fcfa?: number | null };
 
 export async function enregistrerVente(_etat: ResultatVente, formData: FormData): Promise<ResultatVente> {
   const evenementId = String(formData.get("evenement_id") ?? "");
@@ -34,6 +34,18 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
 
   const lignesValides = lignes.filter((l) => l.produit_id && Number(l.quantite) > 0);
   if (lignesValides.length === 0) return { ok: false, erreur: "Ajoutez au moins un produit avec une quantité." };
+
+  // Remises : en % entre 0 et 100, en F CFA positives. Une seule des deux par ligne.
+  for (const l of lignesValides) {
+    const pct = l.remise_pct ?? null;
+    const fcfa = l.remise_fcfa ?? null;
+    if (pct !== null && (!Number.isFinite(Number(pct)) || Number(pct) < 0 || Number(pct) > 100)) {
+      return { ok: false, erreur: "La remise en % doit être comprise entre 0 et 100." };
+    }
+    if (fcfa !== null && (!Number.isFinite(Number(fcfa)) || Number(fcfa) < 0)) {
+      return { ok: false, erreur: "La remise en F CFA ne peut pas être négative." };
+    }
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -80,6 +92,9 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
     evenement_id: evenementId,
     produit_id: l.produit_id,
     quantite: Number(l.quantite),
+    // La remise en F CFA l'emporte sur celle en % (règle R2) : la base calcule le montant.
+    remise_fcfa: l.remise_fcfa != null ? Number(l.remise_fcfa) : null,
+    remise_pct: l.remise_fcfa == null && l.remise_pct != null ? Number(l.remise_pct) : null,
     commercial_id: commercialFinal,
     mode_paiement: modePaiement,
     tiers_id: tiersId,

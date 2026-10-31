@@ -5,10 +5,21 @@ import { createClient } from "@/lib/supabase/client";
 import { enregistrerVente, type ResultatVente } from "./actions";
 
 type Option = { id: string; nom: string };
-type Ligne = { cle: number; produit_id: string; quantite: string; prix: number | null };
+type TypeRemise = "aucune" | "pct" | "fcfa";
+type Ligne = { cle: number; produit_id: string; quantite: string; prix: number | null; remise_type: TypeRemise; remise_valeur: string };
 
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
+
+// Même règle que la base : la remise en F CFA l'emporte ; sinon la remise en %.
+function montantLigne(prix: number | null, quantite: string, remiseType: TypeRemise, remiseValeur: string): number {
+  const brut = (prix ?? 0) * Number(quantite || 0);
+  const valeur = Number(remiseValeur || 0);
+  let remise = 0;
+  if (remiseType === "fcfa") remise = valeur;
+  else if (remiseType === "pct") remise = brut * (valeur / 100);
+  return Math.max(0, brut - remise);
+}
 
 export function FormulaireVente({
   evenements,
@@ -27,7 +38,7 @@ export function FormulaireVente({
   const [evenementId, setEvenementId] = useState("");
   const [dateVente, setDateVente] = useState(aujourdhui());
   const [modePaiement, setModePaiement] = useState<"comptant" | "credit">("comptant");
-  const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1", prix: null }]);
+  const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1", prix: null, remise_type: "aucune", remise_valeur: "" }]);
   const [prochaineCle, setProchaineCle] = useState(2);
 
   // Recalcule l'aperçu des prix quand l'événement ou la date change.
@@ -62,7 +73,7 @@ export function FormulaireVente({
   }
 
   function ajouterLigne() {
-    setLignes((actuelles) => [...actuelles, { cle: prochaineCle, produit_id: "", quantite: "1", prix: null }]);
+    setLignes((actuelles) => [...actuelles, { cle: prochaineCle, produit_id: "", quantite: "1", prix: null, remise_type: "aucune", remise_valeur: "" }]);
     setProchaineCle((k) => k + 1);
   }
 
@@ -70,9 +81,16 @@ export function FormulaireVente({
     setLignes((actuelles) => (actuelles.length > 1 ? actuelles.filter((l) => l.cle !== cle) : actuelles));
   }
 
-  const total = lignes.reduce((somme, l) => somme + (l.prix ?? 0) * Number(l.quantite || 0), 0);
+  const total = lignes.reduce((somme, l) => somme + montantLigne(l.prix, l.quantite, l.remise_type, l.remise_valeur), 0);
   const lignesJson = JSON.stringify(
-    lignes.filter((l) => l.produit_id).map((l) => ({ produit_id: l.produit_id, quantite: Number(l.quantite) }))
+    lignes
+      .filter((l) => l.produit_id)
+      .map((l) => ({
+        produit_id: l.produit_id,
+        quantite: Number(l.quantite),
+        remise_pct: l.remise_type === "pct" ? Number(l.remise_valeur || 0) : null,
+        remise_fcfa: l.remise_type === "fcfa" ? Number(l.remise_valeur || 0) : null,
+      }))
   );
 
   if (etat?.ok) {
@@ -163,8 +181,31 @@ export function FormulaireVente({
               aria-label="Quantité"
             />
             <span className="prix-ligne">
-              {l.prix === null ? "" : francs(l.prix * Number(l.quantite || 0))}
+              {l.prix === null ? "" : francs(montantLigne(l.prix, l.quantite, l.remise_type, l.remise_valeur))}
             </span>
+            <div className="ligne-remise">
+              <select
+                value={l.remise_type}
+                onChange={(e) => modifierLigne(l.cle, { remise_type: e.target.value as TypeRemise, remise_valeur: "" })}
+                aria-label="Type de remise"
+              >
+                <option value="aucune">Sans remise</option>
+                <option value="pct">Remise en %</option>
+                <option value="fcfa">Remise en F CFA</option>
+              </select>
+              {l.remise_type !== "aucune" && (
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  inputMode="decimal"
+                  placeholder={l.remise_type === "pct" ? "%" : "F CFA"}
+                  value={l.remise_valeur}
+                  onChange={(e) => modifierLigne(l.cle, { remise_valeur: e.target.value })}
+                  aria-label="Valeur de la remise"
+                />
+              )}
+            </div>
             <button type="button" className="secondaire petit" onClick={() => supprimerLigne(l.cle)}>
               Retirer
             </button>

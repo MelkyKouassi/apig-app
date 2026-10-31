@@ -211,3 +211,8 @@ body { padding-bottom: 52px; }
 @media print {
   .barre-nav, .curseur-defilement, .curseur-espace, .sommaire, .no-print { display: none !important; }
 }
+
+/* Remise par ligne de vente (sous le produit et la quantité) */
+.ligne-remise { grid-column: 1 / -1; display: flex; gap: 8px; }
+.ligne-remise select { flex: 1; }
+.ligne-remise input { width: 110px; }

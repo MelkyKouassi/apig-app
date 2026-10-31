@@ -12,6 +12,9 @@ type LigneVente = {
   produit_id: string;
   quantite: number;
   montant: number | null;
+  prix_unitaire: number | null;
+  remise_pct: number | null;
+  remise_fcfa: number | null;
   statut: string;
   motif_annulation: string | null;
   created_at: string;
@@ -20,6 +23,18 @@ type LigneVente = {
 };
 
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
+
+// Remise d'une ligne, lue pour le gérant : « remise 10 % (−3 000 F) » ou « remise 3 000 F ».
+function libelleRemise(l: LigneVente): string | null {
+  if (l.statut !== "actif") return null;
+  const brut = Number(l.prix_unitaire ?? 0) * Number(l.quantite);
+  const montant = Number(l.montant ?? 0);
+  const retenue = brut - montant;
+  if (retenue <= 0) return null;
+  if (l.remise_fcfa !== null && Number(l.remise_fcfa) > 0) return `remise ${francs(Number(l.remise_fcfa))}`;
+  if (l.remise_pct !== null && Number(l.remise_pct) > 0) return `remise ${l.remise_pct} % (−${francs(retenue)})`;
+  return `remise −${francs(retenue)}`;
+}
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
 
 export default function PageVentes(props: PageProps<"/ventes">) {
@@ -46,7 +61,7 @@ async function ContenuVentes({ searchParams }: { searchParams: Promise<{ date?: 
 
   const { data } = await supabase
     .from("ventes")
-    .select("id, panier_id, produit_id, quantite, montant, statut, motif_annulation, created_at, produits(nom), evenements(nom)")
+    .select("id, panier_id, produit_id, quantite, montant, prix_unitaire, remise_pct, remise_fcfa, statut, motif_annulation, created_at, produits(nom), evenements(nom)")
     .eq("date_vente", date)
     .order("created_at", { ascending: true });
 
@@ -63,6 +78,9 @@ async function ContenuVentes({ searchParams }: { searchParams: Promise<{ date?: 
   const totalActif = lignes
     .filter((l) => l.statut === "actif")
     .reduce((somme, l) => somme + Number(l.montant ?? 0), 0);
+  const lignesAvecRemise = lignes.filter((l) => libelleRemise(l) !== null);
+  const totalRemises = lignesAvecRemise.reduce(
+    (somme, l) => somme + Number(l.prix_unitaire ?? 0) * Number(l.quantite) - Number(l.montant ?? 0), 0);
 
   return (
     <main className="page-centree">
@@ -78,6 +96,9 @@ async function ContenuVentes({ searchParams }: { searchParams: Promise<{ date?: 
       </form>
 
       <p className="total">Total actif : {francs(totalActif)} ({paniers.size} vente(s))</p>
+      <p className="note">
+        Remises accordées : {lignesAvecRemise.length} ligne(s), pour un total de {francs(totalRemises)}.
+      </p>
 
       {paniers.size === 0 && <p className="note">Aucune vente enregistrée à cette date.</p>}
 
@@ -101,13 +122,17 @@ async function ContenuVentes({ searchParams }: { searchParams: Promise<{ date?: 
                 {ligneDuPanier.map((l) => (
                   <li key={l.id}>
                     {l.produits?.nom ?? "Produit"} × {l.quantite} : {francs(Number(l.montant ?? 0))}
+                    {libelleRemise(l) && <span className="note"> · {libelleRemise(l)}</span>}
                   </li>
                 ))}
               </ul>
             ) : (
               ligneDuPanier.map((l) => (
                 <div key={l.id} className="ligne-editable">
-                  <p className="note">{l.produits?.nom ?? "Produit"} × {l.quantite} : {francs(Number(l.montant ?? 0))}</p>
+                  <p className="note">
+                    {l.produits?.nom ?? "Produit"} × {l.quantite} : {francs(Number(l.montant ?? 0))}
+                    {libelleRemise(l) && <span> · {libelleRemise(l)}</span>}
+                  </p>
                   <FormulaireModifierLigne
                     ligneId={l.id}
                     produitId={(l as unknown as { produit_id: string }).produit_id}

@@ -16,7 +16,8 @@ import {
   type VenteEnAttente,
 } from "@/lib/hors-ligne";
 
-type Ligne = { cle: number; produit_id: string; quantite: string };
+type TypeRemise = "aucune" | "pct" | "fcfa";
+type Ligne = { cle: number; produit_id: string; quantite: string; remise_type: TypeRemise; remise_valeur: string };
 
 const francs = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} F`;
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
@@ -37,7 +38,7 @@ export function SaisieHorsLigne() {
   const [tiersId, setTiersId] = useState("");
   const [nouveauClient, setNouveauClient] = useState("");
   const [commercialId, setCommercialId] = useState("");
-  const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1" }]);
+  const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1", remise_type: "aucune", remise_valeur: "" }]);
   const [prochaineCle, setProchaineCle] = useState(2);
   const [confirmation, setConfirmation] = useState<string | null>(null);
 
@@ -160,6 +161,8 @@ export function SaisieHorsLigne() {
           evenement_id: vente.evenement_id,
           produit_id: l.produit_id,
           quantite: l.quantite,
+          remise_pct: l.remise_pct ?? null,
+          remise_fcfa: l.remise_fcfa ?? null,
           commercial_id: vente.commercial_id,
           mode_paiement: vente.mode_paiement,
           tiers_id: tiers,
@@ -191,7 +194,7 @@ export function SaisieHorsLigne() {
   }
 
   function ajouterLigne() {
-    setLignes((l) => [...l, { cle: prochaineCle, produit_id: "", quantite: "1" }]);
+    setLignes((l) => [...l, { cle: prochaineCle, produit_id: "", quantite: "1", remise_type: "aucune", remise_valeur: "" }]);
     setProchaineCle((k) => k + 1);
   }
 
@@ -216,7 +219,14 @@ export function SaisieHorsLigne() {
     if (!ref || !produitId || !evenementId) return null;
     return prixLocal(ref, produitId, evenementId, dateVente) * Number(quantite || 0);
   };
-  const total = lignes.reduce((s, l) => s + (prixLigne(l.produit_id, l.quantite) ?? 0), 0);
+  // Même règle que la base : la remise en F CFA l'emporte ; sinon la remise en %.
+  const montantAvecRemise = (l: Ligne) => {
+    const brut = prixLigne(l.produit_id, l.quantite) ?? 0;
+    const valeur = Number(l.remise_valeur || 0);
+    const remise = l.remise_type === "fcfa" ? valeur : l.remise_type === "pct" ? brut * (valeur / 100) : 0;
+    return Math.max(0, brut - remise);
+  };
+  const total = lignes.reduce((s, l) => s + montantAvecRemise(l), 0);
 
   async function enregistrer(e: React.FormEvent) {
     e.preventDefault();
@@ -227,6 +237,11 @@ export function SaisieHorsLigne() {
     if (!evenementId) return setMessage("Choisissez l'événement.");
     const lignesValides = lignes.filter((l) => l.produit_id && Number(l.quantite) > 0);
     if (lignesValides.length === 0) return setMessage("Ajoutez au moins un produit avec une quantité.");
+    const remiseInvalide = lignesValides.some((l) => {
+      const v = Number(l.remise_valeur || 0);
+      return l.remise_type === "pct" ? v < 0 || v > 100 : l.remise_type === "fcfa" ? v < 0 : false;
+    });
+    if (remiseInvalide) return setMessage("La remise en % doit être entre 0 et 100, et la remise en F CFA ne peut pas être négative.");
     if (mode === "credit" && !tiersId && !nouveauClient.trim()) {
       return setMessage("Pour une vente à crédit, choisissez le client ou saisissez son nom.");
     }
@@ -245,7 +260,13 @@ export function SaisieHorsLigne() {
       tiers_id: mode === "credit" && tiersId ? tiersId : null,
       nouveau_client: mode === "credit" && !tiersId ? nouveauClient.trim() : null,
       commercial_id: commercial,
-      lignes: lignesValides.map((l) => ({ id: nouvelId(), produit_id: l.produit_id, quantite: Number(l.quantite) })),
+      lignes: lignesValides.map((l) => ({
+        id: nouvelId(),
+        produit_id: l.produit_id,
+        quantite: Number(l.quantite),
+        remise_pct: l.remise_type === "pct" ? Number(l.remise_valeur || 0) : null,
+        remise_fcfa: l.remise_type === "fcfa" ? Number(l.remise_valeur || 0) : null,
+      })),
     };
 
     const nouvelleListe = [...attente, vente];
@@ -253,7 +274,7 @@ export function SaisieHorsLigne() {
     setAttenteState(nouvelleListe);
 
     // Remise à zéro du formulaire
-    setLignes([{ cle: prochaineCle, produit_id: "", quantite: "1" }]);
+    setLignes([{ cle: prochaineCle, produit_id: "", quantite: "1", remise_type: "aucune", remise_valeur: "" }]);
     setProchaineCle((k) => k + 1);
     setTiersId("");
     setNouveauClient("");
@@ -362,8 +383,31 @@ export function SaisieHorsLigne() {
                   aria-label="Quantité"
                 />
                 <span className="prix-ligne">
-                  {prixLigne(l.produit_id, l.quantite) === null ? "" : francs(prixLigne(l.produit_id, l.quantite) ?? 0)}
+                  {prixLigne(l.produit_id, l.quantite) === null ? "" : francs(montantAvecRemise(l))}
                 </span>
+                <div className="ligne-remise">
+                  <select
+                    value={l.remise_type}
+                    onChange={(e) => modifierLigne(l.cle, { remise_type: e.target.value as TypeRemise, remise_valeur: "" })}
+                    aria-label="Type de remise"
+                  >
+                    <option value="aucune">Sans remise</option>
+                    <option value="pct">Remise en %</option>
+                    <option value="fcfa">Remise en F CFA</option>
+                  </select>
+                  {l.remise_type !== "aucune" && (
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      inputMode="decimal"
+                      placeholder={l.remise_type === "pct" ? "%" : "F CFA"}
+                      value={l.remise_valeur}
+                      onChange={(e) => modifierLigne(l.cle, { remise_valeur: e.target.value })}
+                      aria-label="Valeur de la remise"
+                    />
+                  )}
+                </div>
                 <button type="button" className="secondaire petit" onClick={() => retirerLigne(l.cle)}>Retirer</button>
               </div>
             ))}
