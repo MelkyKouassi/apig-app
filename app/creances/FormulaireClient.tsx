@@ -1,17 +1,15 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { enregistrerClient, type EtatReglement } from "./actions";
-import { choisirContact, repertoireDisponible } from "@/lib/contacts";
-import { INDICATIF, normaliserTelephone } from "@/lib/telephone";
+import { ChampTelephone } from "@/components/ChampTelephone";
+import { INDICATIF_DEFAUT, decouperTelephone } from "@/lib/telephone";
 
-// Modifie le nom et le téléphone d'un client, et peut les prendre dans le répertoire du téléphone.
+// Modifie le nom et le téléphone (avec indicatif) d'un client.
 export function FormulaireClient({ tiersId, nom, telephone }: { tiersId: string; nom: string; telephone: string | null }) {
   const [etat, action, enCours] = useActionState<EtatReglement, FormData>(enregistrerClient, null);
   const [nomSaisi, setNomSaisi] = useState(nom);
-  const [telSaisi, setTelSaisi] = useState(telephone ?? INDICATIF);
-  const [peutRepertoire, setPeutRepertoire] = useState(false);
-  useEffect(() => { setPeutRepertoire(repertoireDisponible()); }, []);
+  const d = telephone ? decouperTelephone(telephone) : null;
 
   return (
     <form action={action} className="formulaire">
@@ -20,24 +18,11 @@ export function FormulaireClient({ tiersId, nom, telephone }: { tiersId: string;
         Nom et prénoms
         <input name="nom" required value={nomSaisi} onChange={(e) => setNomSaisi(e.target.value)} />
       </label>
-      <label>
-        Téléphone
-        <input name="telephone" type="tel" inputMode="tel" value={telSaisi} onChange={(e) => setTelSaisi(e.target.value)} placeholder="Ex. 07 00 00 00 00" />
-      </label>
-      {peutRepertoire && (
-        <button
-          type="button"
-          className="secondaire"
-          onClick={async () => {
-            const c = await choisirContact();
-            if (!c) return;
-            if (c.nom) setNomSaisi(c.nom);
-            if (c.telephone) setTelSaisi(normaliserTelephone(c.telephone) ?? c.telephone);
-          }}
-        >
-          Prendre dans mon répertoire
-        </button>
-      )}
+      <ChampTelephone
+        indicatifInitial={d?.code ?? INDICATIF_DEFAUT}
+        numeroInitial={d?.national ?? telephone ?? ""}
+        onNom={setNomSaisi}
+      />
       <button type="submit" disabled={enCours}>{enCours ? "Enregistrement..." : "Enregistrer la fiche"}</button>
       {etat && !etat.ok && <p className="erreur">{etat.erreur}</p>}
       {etat?.ok && <p className="note">Fiche enregistrée.</p>}

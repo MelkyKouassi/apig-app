@@ -3,8 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { enregistrerVente, type ResultatVente } from "./actions";
-import { choisirContact, repertoireDisponible } from "@/lib/contacts";
-import { INDICATIF, normaliserTelephone } from "@/lib/telephone";
+import { ChampTelephone } from "@/components/ChampTelephone";
 
 type Option = { id: string; nom: string };
 type TypeRemise = "aucune" | "pct" | "fcfa";
@@ -43,9 +42,6 @@ export function FormulaireVente({
   const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1", prix: null, remise_type: "aucune", remise_valeur: "" }]);
   const [prochaineCle, setProchaineCle] = useState(2);
   const [nouveauNom, setNouveauNom] = useState("");
-  const [nouveauTel, setNouveauTel] = useState(INDICATIF);
-  const [peutRepertoire, setPeutRepertoire] = useState(false);
-  useEffect(() => { setPeutRepertoire(repertoireDisponible()); }, []);
 
   // Recalcule l'aperçu des prix quand l'événement ou la date change.
   useEffect(() => {
@@ -153,24 +149,7 @@ export function FormulaireVente({
             Ou nouveau client (nom)
             <input name="nouveau_client" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} placeholder="Nom complet" />
           </label>
-          <label>
-            Téléphone du client
-            <input name="nouveau_telephone" type="tel" inputMode="tel" value={nouveauTel} onChange={(e) => setNouveauTel(e.target.value)} placeholder="Ex. 07 00 00 00 00" />
-          </label>
-          {peutRepertoire && (
-            <button
-              type="button"
-              className="secondaire"
-              onClick={async () => {
-                const c = await choisirContact();
-                if (!c) return;
-                if (c.nom) setNouveauNom(c.nom);
-                if (c.telephone) setNouveauTel(normaliserTelephone(c.telephone) ?? c.telephone);
-              }}
-            >
-              Prendre dans mon répertoire
-            </button>
-          )}
+          <ChampTelephone nomIndicatif="nouveau_indicatif" nomNumero="nouveau_telephone" onNom={setNouveauNom} />
         </fieldset>
       )}
 

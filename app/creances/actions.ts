@@ -51,7 +51,8 @@ export async function enregistrerClient(_etat: EtatReglement, formData: FormData
   const tiersId = String(formData.get("tiers_id") ?? "");
   const nom = String(formData.get("nom") ?? "").trim();
   const brutTel = String(formData.get("telephone") ?? "");
-  const telephone = telephoneVide(brutTel) ? null : normaliserTelephone(brutTel);
+  const indicatif = String(formData.get("indicatif") ?? "225");
+  const telephone = telephoneVide(brutTel) ? null : normaliserTelephone(brutTel, indicatif);
   if (!telephoneVide(brutTel) && !telephone) return { ok: false, erreur: MESSAGE_TELEPHONE };
 
   if (!tiersId) return { ok: false, erreur: "Client introuvable." };

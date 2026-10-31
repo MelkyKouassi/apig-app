@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { choisirContact, repertoireDisponible } from "@/lib/contacts";
-import { MESSAGE_TELEPHONE, INDICATIF, normaliserTelephone, telephoneVide, variantesTelephone } from "@/lib/telephone";
+import { MESSAGE_TELEPHONE, INDICATIF_DEFAUT, normaliserTelephone, telephoneVide, variantesTelephone } from "@/lib/telephone";
+import { ChampTelephone } from "@/components/ChampTelephone";
 import {
   getAttente,
   getProfil,
@@ -39,9 +39,8 @@ export function SaisieHorsLigne() {
   const [mode, setMode] = useState<"comptant" | "credit">("comptant");
   const [tiersId, setTiersId] = useState("");
   const [nouveauClient, setNouveauClient] = useState("");
-  const [nouveauTelephone, setNouveauTelephone] = useState(INDICATIF);
-  const [peutRepertoire, setPeutRepertoire] = useState(false);
-  useEffect(() => { setPeutRepertoire(repertoireDisponible()); }, []);
+  const [nouveauTelephone, setNouveauTelephone] = useState("");
+  const [nouveauIndicatif, setNouveauIndicatif] = useState(INDICATIF_DEFAUT);
   const [commercialId, setCommercialId] = useState("");
   const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1", remise_type: "aucune", remise_valeur: "" }]);
   const [prochaineCle, setProchaineCle] = useState(2);
@@ -333,7 +332,7 @@ export function SaisieHorsLigne() {
     if (mode === "credit" && !tiersId && !nouveauClient.trim()) {
       return setMessage("Pour une vente à crédit, choisissez le client ou saisissez son nom.");
     }
-    if (mode === "credit" && !tiersId && !telephoneVide(nouveauTelephone) && !normaliserTelephone(nouveauTelephone)) {
+    if (mode === "credit" && !tiersId && !telephoneVide(nouveauTelephone) && !normaliserTelephone(nouveauTelephone, nouveauIndicatif)) {
       return setMessage(MESSAGE_TELEPHONE);
     }
 
@@ -350,7 +349,7 @@ export function SaisieHorsLigne() {
       mode_paiement: mode,
       tiers_id: mode === "credit" && tiersId ? tiersId : null,
       nouveau_client: mode === "credit" && !tiersId ? nouveauClient.trim() : null,
-      nouveau_telephone: mode === "credit" && !tiersId && !telephoneVide(nouveauTelephone) ? normaliserTelephone(nouveauTelephone) : null,
+      nouveau_telephone: mode === "credit" && !tiersId && !telephoneVide(nouveauTelephone) ? normaliserTelephone(nouveauTelephone, nouveauIndicatif) : null,
       commercial_id: commercial,
       lignes: lignesValides.map((l) => ({
         id: nouvelId(),
@@ -445,24 +444,12 @@ export function SaisieHorsLigne() {
                 Ou nouveau client (nom)
                 <input value={nouveauClient} onChange={(e) => setNouveauClient(e.target.value)} placeholder="Nom complet" />
               </label>
-              <label>
-                Téléphone du client
-                <input type="tel" inputMode="tel" value={nouveauTelephone} onChange={(e) => setNouveauTelephone(e.target.value)} placeholder="Ex. 07 00 00 00 00" />
-              </label>
-              {peutRepertoire && (
-                <button
-                  type="button"
-                  className="secondaire"
-                  onClick={async () => {
-                    const c = await choisirContact();
-                    if (!c) return;
-                    if (c.nom) setNouveauClient(c.nom);
-                    if (c.telephone) setNouveauTelephone(normaliserTelephone(c.telephone) ?? c.telephone);
-                  }}
-                >
-                  Prendre dans mon répertoire
-                </button>
-              )}
+              <ChampTelephone
+                indicatifInitial={nouveauIndicatif}
+                numeroInitial={nouveauTelephone}
+                onChange={(i, n) => { setNouveauIndicatif(i); setNouveauTelephone(n); }}
+                onNom={setNouveauClient}
+              />
             </fieldset>
           )}
 

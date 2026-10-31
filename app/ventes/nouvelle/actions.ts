@@ -19,7 +19,8 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
   const tiersChoisi = String(formData.get("tiers_id") ?? "") || null;
   const nouveauClient = String(formData.get("nouveau_client") ?? "").trim();
   const brutTelephone = String(formData.get("nouveau_telephone") ?? "");
-  const nouveauTelephone = telephoneVide(brutTelephone) ? null : normaliserTelephone(brutTelephone);
+  const indicatifTelephone = String(formData.get("nouveau_indicatif") ?? "225");
+  const nouveauTelephone = telephoneVide(brutTelephone) ? null : normaliserTelephone(brutTelephone, indicatifTelephone);
   if (!telephoneVide(brutTelephone) && !nouveauTelephone) return { ok: false, erreur: MESSAGE_TELEPHONE };
   const lignesBrutes = String(formData.get("lignes") ?? "[]");
 
