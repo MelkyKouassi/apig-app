@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { choisirContact, repertoireDisponible } from "@/lib/contacts";
 import {
   getAttente,
   getProfil,
@@ -37,6 +38,9 @@ export function SaisieHorsLigne() {
   const [mode, setMode] = useState<"comptant" | "credit">("comptant");
   const [tiersId, setTiersId] = useState("");
   const [nouveauClient, setNouveauClient] = useState("");
+  const [nouveauTelephone, setNouveauTelephone] = useState("");
+  const [peutRepertoire, setPeutRepertoire] = useState(false);
+  useEffect(() => { setPeutRepertoire(repertoireDisponible()); }, []);
   const [commercialId, setCommercialId] = useState("");
   const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1", remise_type: "aucune", remise_valeur: "" }]);
   const [prochaineCle, setProchaineCle] = useState(2);
@@ -190,13 +194,22 @@ export function SaisieHorsLigne() {
         let tiers = vente.tiers_id;
         // Nouveau client saisi hors ligne : créé une seule fois, puis son identifiant est gardé.
         if (vente.mode_paiement === "credit" && !tiers && vente.nouveau_client) {
-          const { data, error } = await supabase
-            .from("tiers")
-            .insert({ nom: vente.nouveau_client, type: "client", created_by: session.user.id })
-            .select("id")
-            .single();
-          if (error || !data) throw new Error("client");
-          tiers = data.id;
+          // Même numéro déjà connu : on réutilise la fiche existante au lieu d'en créer une deuxième.
+          const telephone = vente.nouveau_telephone?.trim() || null;
+          const { data: deja } = telephone
+            ? await supabase.from("tiers").select("id").eq("telephone", telephone).limit(1).maybeSingle()
+            : { data: null };
+          let idClient = deja?.id as string | undefined;
+          if (!idClient) {
+            const { data, error } = await supabase
+              .from("tiers")
+              .insert({ nom: vente.nouveau_client, telephone, type: "client", created_by: session.user.id })
+              .select("id")
+              .single();
+            if (error || !data) throw new Error("client");
+            idClient = data.id;
+          }
+          tiers = idClient ?? null;
           vente.tiers_id = tiers;
         }
         const lignesBase = vente.lignes.map((l) => ({
@@ -333,6 +346,7 @@ export function SaisieHorsLigne() {
       mode_paiement: mode,
       tiers_id: mode === "credit" && tiersId ? tiersId : null,
       nouveau_client: mode === "credit" && !tiersId ? nouveauClient.trim() : null,
+      nouveau_telephone: mode === "credit" && !tiersId ? nouveauTelephone.trim() || null : null,
       commercial_id: commercial,
       lignes: lignesValides.map((l) => ({
         id: nouvelId(),
@@ -427,6 +441,24 @@ export function SaisieHorsLigne() {
                 Ou nouveau client (nom)
                 <input value={nouveauClient} onChange={(e) => setNouveauClient(e.target.value)} placeholder="Nom complet" />
               </label>
+              <label>
+                Téléphone du client
+                <input type="tel" inputMode="tel" value={nouveauTelephone} onChange={(e) => setNouveauTelephone(e.target.value)} placeholder="Ex. 07 00 00 00 00" />
+              </label>
+              {peutRepertoire && (
+                <button
+                  type="button"
+                  className="secondaire"
+                  onClick={async () => {
+                    const c = await choisirContact();
+                    if (!c) return;
+                    if (c.nom) setNouveauClient(c.nom);
+                    if (c.telephone) setNouveauTelephone(c.telephone);
+                  }}
+                >
+                  Prendre dans mon répertoire
+                </button>
+              )}
             </fieldset>
           )}
 

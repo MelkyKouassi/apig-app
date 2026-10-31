@@ -17,6 +17,7 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
   const modePaiement = String(formData.get("mode_paiement") ?? "comptant");
   const tiersChoisi = String(formData.get("tiers_id") ?? "") || null;
   const nouveauClient = String(formData.get("nouveau_client") ?? "").trim();
+  const nouveauTelephone = String(formData.get("nouveau_telephone") ?? "").trim() || null;
   const lignesBrutes = String(formData.get("lignes") ?? "[]");
 
   if (!evenementId) return { ok: false, erreur: "Choisissez l'événement." };
@@ -71,15 +72,23 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
     if (tiersChoisi) {
       tiersId = tiersChoisi;
     } else if (nouveauClient) {
-      const { data: nouveau, error: erreurClient } = await supabase
-        .from("tiers")
-        .insert({ nom: nouveauClient, type: "client", created_by: user.id })
-        .select("id")
-        .single();
-      if (erreurClient || !nouveau) {
-        return { ok: false, erreur: "Le nouveau client n'a pas pu être créé. Vérifiez le nom." };
+      // Même numéro déjà connu : on réutilise la fiche existante au lieu d'en créer une deuxième.
+      const { data: deja } = nouveauTelephone
+        ? await supabase.from("tiers").select("id").eq("telephone", nouveauTelephone).limit(1).maybeSingle()
+        : { data: null };
+      if (deja) {
+        tiersId = deja.id;
+      } else {
+        const { data: nouveau, error: erreurClient } = await supabase
+          .from("tiers")
+          .insert({ nom: nouveauClient, telephone: nouveauTelephone, type: "client", created_by: user.id })
+          .select("id")
+          .single();
+        if (erreurClient || !nouveau) {
+          return { ok: false, erreur: "Le nouveau client n'a pas pu être créé. Vérifiez le nom." };
+        }
+        tiersId = nouveau.id;
       }
-      tiersId = nouveau.id;
     } else {
       return { ok: false, erreur: "Pour une vente à crédit, choisissez le client ou saisissez son nom." };
     }

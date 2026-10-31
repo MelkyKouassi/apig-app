@@ -31,6 +31,7 @@ export type VenteEnAttente = {
   mode_paiement: "comptant" | "credit";
   tiers_id: string | null;
   nouveau_client: string | null;
+  nouveau_telephone?: string | null;
   commercial_id: string | null;
   lignes: { id: string; produit_id: string; quantite: number; remise_pct?: number | null; remise_fcfa?: number | null }[];
 };
