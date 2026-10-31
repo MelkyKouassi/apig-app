@@ -5,6 +5,7 @@ import {
   enregistrerCollaborateur,
   enregistrerEntreprise,
   enregistrerLienCommercial,
+  enregistrerNomCommercial,
   enregistrerNouveauCommercial,
   enregistrerParametres,
   enregistrerProfil,
@@ -27,6 +28,23 @@ export function FormulaireLienCommercial({ id, userId, comptes }: { id: string; 
       <button type="submit" className="secondaire" disabled={enCours}>{enCours ? "Enregistrement..." : "Enregistrer le lien"}</button>
       {etat && !etat.ok && <p className="erreur">{etat.erreur}</p>}
       {etat?.ok && <p className="note">Lien enregistré.</p>}
+    </form>
+  );
+}
+
+// Modifie le nom d'un commercial (par exemple après un changement d'état civil).
+export function FormulaireNomCommercial({ id, nom }: { id: string; nom: string }) {
+  const [etat, action, enCours] = useActionState<EtatAdmin, FormData>(enregistrerNomCommercial, null);
+  return (
+    <form action={action} className="formulaire">
+      <input type="hidden" name="commercial_id" value={id} />
+      <label>
+        Nom et prénoms
+        <input name="nom" required defaultValue={nom} />
+      </label>
+      <button type="submit" className="secondaire" disabled={enCours}>{enCours ? "Enregistrement..." : "Modifier le nom"}</button>
+      {etat && !etat.ok && <p className="erreur">{etat.erreur}</p>}
+      {etat?.ok && <p className="note">Nom modifié.</p>}
     </form>
   );
 }

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { FormulaireCollaborateur, FormulaireEntreprise, FormulaireLienCommercial, FormulaireNouveauCommercial, FormulaireParametres, FormulaireProfil } from "./Formulaires";
+import { FormulaireCollaborateur, FormulaireEntreprise, FormulaireLienCommercial, FormulaireNomCommercial, FormulaireNouveauCommercial, FormulaireParametres, FormulaireProfil } from "./Formulaires";
 import { dateHeureFr } from "@/lib/dates";
 import { Sommaire } from "@/components/Sommaire";
 
@@ -121,6 +121,7 @@ async function ContenuAdministration() {
               {c.nom}{c.user_id ? ` · relié à ${noms.get(c.user_id) ?? "un compte"}` : " · sans compte"}
             </summary>
             <FormulaireLienCommercial id={c.id} userId={c.user_id} comptes={comptesCommerciaux} />
+            <FormulaireNomCommercial id={c.id} nom={c.nom} />
           </details>
         ))}
       </section>

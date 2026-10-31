@@ -185,3 +185,21 @@ export async function enregistrerNouveauCommercial(_etat: EtatAdmin, f: FormData
   revalidatePath("/validation-stock");
   return { ok: true };
 }
+
+// Modifie le nom d'un commercial. Le nouveau nom apparaît partout, y compris dans les anciennes ventes.
+export async function enregistrerNomCommercial(_etat: EtatAdmin, f: FormData): Promise<EtatAdmin> {
+  const s = await gerantConnecte();
+  if ("erreur" in s) return { ok: false, erreur: s.erreur };
+  const commercialId = String(f.get("commercial_id") ?? "");
+  const nom = texte(f, "nom");
+  if (!commercialId) return { ok: false, erreur: "Commercial introuvable." };
+  if (!nom) return { ok: false, erreur: "Le nom ne peut pas être vide." };
+
+  const { error } = await s.supabase.from("commerciaux").update({ nom }).eq("id", commercialId);
+  if (error) return { ok: false, erreur: "Le nom n'a pas pu être modifié." };
+
+  revalidatePath("/administration");
+  revalidatePath("/validation-stock");
+  revalidatePath("/stock-du-jour");
+  return { ok: true };
+}
