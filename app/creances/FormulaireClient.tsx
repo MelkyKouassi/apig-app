@@ -3,12 +3,13 @@
 import { useActionState, useEffect, useState } from "react";
 import { enregistrerClient, type EtatReglement } from "./actions";
 import { choisirContact, repertoireDisponible } from "@/lib/contacts";
+import { INDICATIF, normaliserTelephone } from "@/lib/telephone";
 
 // Modifie le nom et le téléphone d'un client, et peut les prendre dans le répertoire du téléphone.
 export function FormulaireClient({ tiersId, nom, telephone }: { tiersId: string; nom: string; telephone: string | null }) {
   const [etat, action, enCours] = useActionState<EtatReglement, FormData>(enregistrerClient, null);
   const [nomSaisi, setNomSaisi] = useState(nom);
-  const [telSaisi, setTelSaisi] = useState(telephone ?? "");
+  const [telSaisi, setTelSaisi] = useState(telephone ?? INDICATIF);
   const [peutRepertoire, setPeutRepertoire] = useState(false);
   useEffect(() => { setPeutRepertoire(repertoireDisponible()); }, []);
 
@@ -31,7 +32,7 @@ export function FormulaireClient({ tiersId, nom, telephone }: { tiersId: string;
             const c = await choisirContact();
             if (!c) return;
             if (c.nom) setNomSaisi(c.nom);
-            if (c.telephone) setTelSaisi(c.telephone);
+            if (c.telephone) setTelSaisi(normaliserTelephone(c.telephone) ?? c.telephone);
           }}
         >
           Prendre dans mon répertoire

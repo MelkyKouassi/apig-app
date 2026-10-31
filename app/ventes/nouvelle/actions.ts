@@ -2,7 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
-import { MESSAGE_TELEPHONE, normaliserTelephone } from "@/lib/telephone";
+import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneVide, variantesTelephone } from "@/lib/telephone";
 
 export type ResultatVente =
   | { ok: true; nombre: number; total: number }
@@ -18,9 +18,9 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
   const modePaiement = String(formData.get("mode_paiement") ?? "comptant");
   const tiersChoisi = String(formData.get("tiers_id") ?? "") || null;
   const nouveauClient = String(formData.get("nouveau_client") ?? "").trim();
-  const brutTelephone = String(formData.get("nouveau_telephone") ?? "").trim();
-  const nouveauTelephone = brutTelephone === "" ? null : normaliserTelephone(brutTelephone);
-  if (brutTelephone !== "" && !nouveauTelephone) return { ok: false, erreur: MESSAGE_TELEPHONE };
+  const brutTelephone = String(formData.get("nouveau_telephone") ?? "");
+  const nouveauTelephone = telephoneVide(brutTelephone) ? null : normaliserTelephone(brutTelephone);
+  if (!telephoneVide(brutTelephone) && !nouveauTelephone) return { ok: false, erreur: MESSAGE_TELEPHONE };
   const lignesBrutes = String(formData.get("lignes") ?? "[]");
 
   if (!evenementId) return { ok: false, erreur: "Choisissez l'événement." };
@@ -77,7 +77,7 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
     } else if (nouveauClient) {
       // Même numéro déjà connu : on réutilise la fiche existante au lieu d'en créer une deuxième.
       const { data: deja } = nouveauTelephone
-        ? await supabase.from("tiers").select("id").eq("telephone", nouveauTelephone).limit(1).maybeSingle()
+        ? await supabase.from("tiers").select("id").in("telephone", variantesTelephone(nouveauTelephone)).limit(1).maybeSingle()
         : { data: null };
       if (deja) {
         tiersId = deja.id;

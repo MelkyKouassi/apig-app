@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { enregistrerVente, type ResultatVente } from "./actions";
 import { choisirContact, repertoireDisponible } from "@/lib/contacts";
+import { INDICATIF, normaliserTelephone } from "@/lib/telephone";
 
 type Option = { id: string; nom: string };
 type TypeRemise = "aucune" | "pct" | "fcfa";
@@ -42,7 +43,7 @@ export function FormulaireVente({
   const [lignes, setLignes] = useState<Ligne[]>([{ cle: 1, produit_id: "", quantite: "1", prix: null, remise_type: "aucune", remise_valeur: "" }]);
   const [prochaineCle, setProchaineCle] = useState(2);
   const [nouveauNom, setNouveauNom] = useState("");
-  const [nouveauTel, setNouveauTel] = useState("");
+  const [nouveauTel, setNouveauTel] = useState(INDICATIF);
   const [peutRepertoire, setPeutRepertoire] = useState(false);
   useEffect(() => { setPeutRepertoire(repertoireDisponible()); }, []);
 
@@ -164,7 +165,7 @@ export function FormulaireVente({
                 const c = await choisirContact();
                 if (!c) return;
                 if (c.nom) setNouveauNom(c.nom);
-                if (c.telephone) setNouveauTel(c.telephone);
+                if (c.telephone) setNouveauTel(normaliserTelephone(c.telephone) ?? c.telephone);
               }}
             >
               Prendre dans mon répertoire

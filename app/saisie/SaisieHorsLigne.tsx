@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { choisirContact, repertoireDisponible } from "@/lib/contacts";
-import { MESSAGE_TELEPHONE, normaliserTelephone } from "@/lib/telephone";
+import { MESSAGE_TELEPHONE, INDICATIF, normaliserTelephone, telephoneVide, variantesTelephone } from "@/lib/telephone";
 import {
   getAttente,
   getProfil,
@@ -39,7 +39,7 @@ export function SaisieHorsLigne() {
   const [mode, setMode] = useState<"comptant" | "credit">("comptant");
   const [tiersId, setTiersId] = useState("");
   const [nouveauClient, setNouveauClient] = useState("");
-  const [nouveauTelephone, setNouveauTelephone] = useState("");
+  const [nouveauTelephone, setNouveauTelephone] = useState(INDICATIF);
   const [peutRepertoire, setPeutRepertoire] = useState(false);
   useEffect(() => { setPeutRepertoire(repertoireDisponible()); }, []);
   const [commercialId, setCommercialId] = useState("");
@@ -198,7 +198,7 @@ export function SaisieHorsLigne() {
           // Même numéro déjà connu : on réutilise la fiche existante au lieu d'en créer une deuxième.
           const telephone = vente.nouveau_telephone?.trim() || null;
           const { data: deja } = telephone
-            ? await supabase.from("tiers").select("id").eq("telephone", telephone).limit(1).maybeSingle()
+            ? await supabase.from("tiers").select("id").in("telephone", variantesTelephone(telephone)).limit(1).maybeSingle()
             : { data: null };
           let idClient = deja?.id as string | undefined;
           if (!idClient) {
@@ -333,7 +333,7 @@ export function SaisieHorsLigne() {
     if (mode === "credit" && !tiersId && !nouveauClient.trim()) {
       return setMessage("Pour une vente à crédit, choisissez le client ou saisissez son nom.");
     }
-    if (mode === "credit" && !tiersId && nouveauTelephone.trim() !== "" && !normaliserTelephone(nouveauTelephone)) {
+    if (mode === "credit" && !tiersId && !telephoneVide(nouveauTelephone) && !normaliserTelephone(nouveauTelephone)) {
       return setMessage(MESSAGE_TELEPHONE);
     }
 
@@ -350,7 +350,7 @@ export function SaisieHorsLigne() {
       mode_paiement: mode,
       tiers_id: mode === "credit" && tiersId ? tiersId : null,
       nouveau_client: mode === "credit" && !tiersId ? nouveauClient.trim() : null,
-      nouveau_telephone: mode === "credit" && !tiersId && nouveauTelephone.trim() !== "" ? normaliserTelephone(nouveauTelephone) : null,
+      nouveau_telephone: mode === "credit" && !tiersId && !telephoneVide(nouveauTelephone) ? normaliserTelephone(nouveauTelephone) : null,
       commercial_id: commercial,
       lignes: lignesValides.map((l) => ({
         id: nouvelId(),
@@ -457,7 +457,7 @@ export function SaisieHorsLigne() {
                     const c = await choisirContact();
                     if (!c) return;
                     if (c.nom) setNouveauClient(c.nom);
-                    if (c.telephone) setNouveauTelephone(c.telephone);
+                    if (c.telephone) setNouveauTelephone(normaliserTelephone(c.telephone) ?? c.telephone);
                   }}
                 >
                   Prendre dans mon répertoire

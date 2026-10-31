@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { MESSAGE_TELEPHONE, normaliserTelephone } from "@/lib/telephone";
+import { MESSAGE_TELEPHONE, normaliserTelephone, telephoneVide, variantesTelephone } from "@/lib/telephone";
 
 export type EtatReglement = { ok: true } | { ok: false; erreur: string } | null;
 
@@ -50,9 +50,9 @@ export async function enregistrerReglement(_etat: EtatReglement, formData: FormD
 export async function enregistrerClient(_etat: EtatReglement, formData: FormData): Promise<EtatReglement> {
   const tiersId = String(formData.get("tiers_id") ?? "");
   const nom = String(formData.get("nom") ?? "").trim();
-  const brutTel = String(formData.get("telephone") ?? "").trim();
-  const telephone = brutTel === "" ? null : normaliserTelephone(brutTel);
-  if (brutTel !== "" && !telephone) return { ok: false, erreur: MESSAGE_TELEPHONE };
+  const brutTel = String(formData.get("telephone") ?? "");
+  const telephone = telephoneVide(brutTel) ? null : normaliserTelephone(brutTel);
+  if (!telephoneVide(brutTel) && !telephone) return { ok: false, erreur: MESSAGE_TELEPHONE };
 
   if (!tiersId) return { ok: false, erreur: "Client introuvable." };
   if (!nom) return { ok: false, erreur: "Le nom ne peut pas être vide." };
@@ -63,7 +63,7 @@ export async function enregistrerClient(_etat: EtatReglement, formData: FormData
 
   if (telephone) {
     const { data: autre } = await supabase
-      .from("tiers").select("nom").eq("telephone", telephone).neq("id", tiersId).limit(1).maybeSingle();
+      .from("tiers").select("nom").in("telephone", variantesTelephone(telephone)).neq("id", tiersId).limit(1).maybeSingle();
     if (autre) return { ok: false, erreur: `Ce numéro appartient déjà à « ${autre.nom} ». Vérifiez-le.` };
   }
 
