@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BoutonValider, BoutonValiderMouvement, FormulaireChef } from "./Formulaire";
 
+type Membre = { commercial_id: string; nom: string; est_chef: boolean };
+type LigneMouvement = { id: string; commercial: string; produit: string; quantite: number };
+
 export default function PageValidationStock({ searchParams }: { searchParams: Promise<{ lieu?: string }> }) {
   return (
     <Suspense fallback={<p className="page-centree">Chargement...</p>}>
@@ -50,19 +53,15 @@ async function ContenuValidation({ searchParams }: { searchParams: Promise<{ lie
   let chefActuel: string | null = null;
 
   if (lieuChoisi) {
-    const [{ data: affectations }, { data: stocks }, { data: validations }, { data: produits }] = await Promise.all([
-      supabase.from("evenement_commerciaux").select("commercial_id, est_chef").eq("evenement_id", lieuChoisi.id),
+    const [{ data: membres }, { data: stocks }, { data: validations }, { data: produits }] = await Promise.all([
+      supabase.rpc("membres_du_lieu", { p_evenement: lieuChoisi.id }),
       supabase.from("stock_depart").select("commercial_id, quantite, produit_id").eq("evenement_id", lieuChoisi.id),
       supabase.from("validation_stock").select("commercial_id, valide_le, confirme_le").eq("evenement_id", lieuChoisi.id),
       supabase.from("produits").select("id, nom"),
     ]);
-    const idsAffectes = (affectations ?? []).map((a) => a.commercial_id);
-    chefActuel = (affectations ?? []).find((a) => a.est_chef)?.commercial_id ?? null;
-
-    const { data: noms } = idsAffectes.length > 0
-      ? await supabase.from("commerciaux").select("id, nom").in("id", idsAffectes).order("nom")
-      : { data: [] as { id: string; nom: string }[] };
-    affectes = noms ?? [];
+    const listeMembres = (membres ?? []) as Membre[];
+    affectes = listeMembres.map((m) => ({ id: m.commercial_id, nom: m.nom }));
+    chefActuel = listeMembres.find((m) => m.est_chef)?.commercial_id ?? null;
 
     const nomProduit = new Map((produits ?? []).map((p) => [p.id, p.nom]));
     blocs = affectes.map((c) => {
@@ -80,17 +79,17 @@ async function ContenuValidation({ searchParams }: { searchParams: Promise<{ lie
   }
 
   // Compléments à valider et restitutions à contrôler, pour le lieu choisi.
-  let mouvementsEnAttente: { id: string; commercial: string; produit: string; quantite: number }[] = [];
-  let restitutions: { id: string; commercial: string; produit: string; quantite: number }[] = [];
+  let mouvementsEnAttente: LigneMouvement[] = [];
+  let restitutions: LigneMouvement[] = [];
   if (lieuChoisi) {
     const { data: mv } = await supabase.from("mouvements_stock_lieu")
       .select("id, commercial_id, produit_id, type, quantite, statut")
       .eq("evenement_id", lieuChoisi.id).order("declare_le", { ascending: false });
     const { data: tousProduits } = await supabase.from("produits").select("id, nom");
-    const { data: tousCommerciaux } = await supabase.from("commerciaux").select("id, nom");
+    const { data: tousMembres } = await supabase.rpc("membres_du_lieu", { p_evenement: lieuChoisi.id });
     const nomP = new Map((tousProduits ?? []).map((p) => [p.id, p.nom]));
-    const nomC = new Map((tousCommerciaux ?? []).map((c) => [c.id, c.nom]));
-    const ligne = (m: { id: string; commercial_id: string; produit_id: string; quantite: number | string }) => ({
+    const nomC = new Map(((tousMembres ?? []) as Membre[]).map((c) => [c.commercial_id, c.nom]));
+    const ligne = (m: { id: string; commercial_id: string; produit_id: string; quantite: number | string }): LigneMouvement => ({
       id: m.id,
       commercial: nomC.get(m.commercial_id) ?? "Commercial",
       produit: nomP.get(m.produit_id) ?? "Produit",
