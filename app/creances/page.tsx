@@ -189,6 +189,12 @@ async function ContenuCreances() {
               {l.retard !== null && ` · Retard : ${Math.max(0, l.retard)} j`}
             </p>
             {estGerant && <FormulaireReglementDepot tiersId={l.id} reste={l.reste} />}
+            {estGerant && (
+              <details className="modifier-client">
+                <summary>Modifier la fiche</summary>
+                <FormulaireClient tiersId={l.id} nom={destinataire?.nom ?? ""} telephone={destinataire?.telephone ?? null} />
+              </details>
+            )}
           </section>
         );
       })}
