@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { FormulaireStock } from "./Formulaire";
+import { FormulaireMouvement, FormulaireStock } from "./Formulaire";
 
 export default function PageStockDuJour({ searchParams }: { searchParams: Promise<{ lieu?: string }> }) {
   return (
@@ -45,6 +45,15 @@ async function ContenuStockDuJour({ searchParams }: { searchParams: Promise<{ li
     else if (validation?.valide_le) statut = "valide";
   }
 
+  let mouvements: { id: string; produit_id: string; type: string; quantite: number; statut: string }[] = [];
+  if (fiche && lieuChoisi) {
+    const { data } = await supabase.from("mouvements_stock_lieu")
+      .select("id, produit_id, type, quantite, statut")
+      .eq("evenement_id", lieuChoisi.id).eq("commercial_id", fiche.id).order("declare_le", { ascending: false });
+    mouvements = (data ?? []).map((m) => ({ ...m, quantite: Number(m.quantite) }));
+  }
+  const nomProduit = new Map((produits ?? []).map((p) => [p.id, p.nom]));
+
   const quantiteDe = new Map(stock.map((s) => [s.produit_id, s.quantite]));
   const messageStatut = {
     attente: "En attente de validation par le gérant ou le chef d'équipe. Vous ne pouvez pas encore vendre sur ce lieu.",
@@ -86,6 +95,28 @@ async function ContenuStockDuJour({ searchParams }: { searchParams: Promise<{ li
             statut={statut}
             produits={(produits ?? []).map((p) => ({ id: p.id, nom: p.nom, quantite: quantiteDe.get(p.id) ?? null }))}
           />
+
+          {statut === "confirme" && (
+            <FormulaireMouvement
+              evenementId={lieuChoisi.id}
+              produits={(produits ?? []).map((p) => ({ id: p.id, nom: p.nom }))}
+            />
+          )}
+
+          {mouvements.length > 0 && (
+            <section className="carte">
+              <h2>Mes mouvements sur ce lieu</h2>
+              <ul>
+                {mouvements.map((m) => (
+                  <li key={m.id}>
+                    {m.type === "restitution" ? "Restitution" : "Complément"} de {m.quantite} × {nomProduit.get(m.produit_id) ?? "Produit"}
+                    {" — "}
+                    {m.statut === "valide" ? "compté" : "en attente de validation"}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </>
       )}
     </main>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { definirChef, validerStock, type EtatValidation } from "./actions";
+import { definirChef, validerMouvement, validerStock, type EtatValidation } from "./actions";
 
 export function BoutonValider({ evenementId, commercialId }: { evenementId: string; commercialId: string }) {
   const [etat, envoyer, enCours] = useActionState<EtatValidation, FormData>(validerStock, null);
@@ -41,6 +41,19 @@ export function FormulaireChef({
       </label>
       <button type="submit" className="secondaire" disabled={enCours}>
         {enCours ? "Enregistrement..." : "Enregistrer le chef"}
+      </button>
+      {etat && <p className={etat.ok ? "note" : "erreur"}>{etat.ok ? etat.message : etat.erreur}</p>}
+    </form>
+  );
+}
+
+export function BoutonValiderMouvement({ mouvementId }: { mouvementId: string }) {
+  const [etat, envoyer, enCours] = useActionState<EtatValidation, FormData>(validerMouvement, null);
+  return (
+    <form action={envoyer}>
+      <input type="hidden" name="mouvement_id" value={mouvementId} />
+      <button type="submit" className="petit" disabled={enCours}>
+        {enCours ? "Validation..." : "Valider ce complément"}
       </button>
       {etat && <p className={etat.ok ? "note" : "erreur"}>{etat.ok ? etat.message : etat.erreur}</p>}
     </form>

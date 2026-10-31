@@ -123,20 +123,29 @@ export function SaisieHorsLigne() {
     // Stock personnel : emporté (stock_depart) moins ses ventes déjà envoyées.
     let stockPersonnel: NonNullable<Referentiel["stock_personnel"]> = [];
     if (ficheId) {
-      const [sd, vt] = await Promise.all([
+      const [sd, vt, mv] = await Promise.all([
         supabase.from("stock_depart").select("evenement_id, produit_id, quantite").eq("commercial_id", ficheId),
         supabase.from("ventes").select("evenement_id, produit_id, quantite").eq("commercial_id", ficheId).eq("statut", "actif"),
+        supabase.from("mouvements_stock_lieu").select("evenement_id, produit_id, type, quantite, statut").eq("commercial_id", ficheId),
       ]);
+      const cle = (e: unknown, p: unknown) => `${e}|${p}`;
       const vendu = new Map<string, number>();
       for (const v of vt.data ?? []) {
-        const cle = `${v.evenement_id}|${v.produit_id}`;
-        vendu.set(cle, (vendu.get(cle) ?? 0) + Number(v.quantite || 0));
+        vendu.set(cle(v.evenement_id, v.produit_id), (vendu.get(cle(v.evenement_id, v.produit_id)) ?? 0) + Number(v.quantite || 0));
+      }
+      // Restitutions : retirées du stock. Compléments : comptés seulement une fois validés.
+      const ajustement = new Map<string, number>();
+      for (const m of mv.data ?? []) {
+        const k = cle(m.evenement_id, m.produit_id);
+        const q = Number(m.quantite || 0);
+        if (m.type === "restitution") ajustement.set(k, (ajustement.get(k) ?? 0) - q);
+        else if (m.type === "complement" && m.statut === "valide") ajustement.set(k, (ajustement.get(k) ?? 0) + q);
       }
       stockPersonnel = (sd.data ?? []).map((s) => ({
         evenement_id: s.evenement_id as string,
         produit_id: s.produit_id as string,
-        quantite: Number(s.quantite),
-        vendu: vendu.get(`${s.evenement_id}|${s.produit_id}`) ?? 0,
+        quantite: Number(s.quantite) + (ajustement.get(cle(s.evenement_id, s.produit_id)) ?? 0),
+        vendu: vendu.get(cle(s.evenement_id, s.produit_id)) ?? 0,
       }));
     }
 

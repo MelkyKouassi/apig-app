@@ -30,3 +30,14 @@ export async function definirChef(_etat: EtatValidation, f: FormData): Promise<E
   revalidatePath("/validation-stock");
   return { ok: true, message: commercialId ? "Chef d'équipe désigné." : "Aucun chef d'équipe : le gérant valide seul." };
 }
+
+// Le gérant, ou le chef d'équipe, valide un complément de stock déclaré par un commercial.
+export async function validerMouvement(_etat: EtatValidation, f: FormData): Promise<EtatValidation> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("valider_mouvement_stock", { p_mouvement: String(f.get("mouvement_id") ?? "") });
+  if (error) return { ok: false, erreur: error.message };
+
+  revalidatePath("/validation-stock");
+  revalidatePath("/stock-du-jour");
+  return { ok: true, message: "Complément validé. Il est compté dans le stock du commercial." };
+}

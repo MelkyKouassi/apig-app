@@ -78,3 +78,28 @@ export async function confirmerStock(_etat: EtatStock, f: FormData): Promise<Eta
   revalidatePath("/stock-du-jour");
   return { ok: true, message: "Stock confirmé : vous pouvez vendre sur ce lieu." };
 }
+
+// Restitution (effet immédiat) ou complément (compté après validation du gérant ou du chef).
+export async function declarerMouvement(_etat: EtatStock, f: FormData): Promise<EtatStock> {
+  const { supabase, fiche, erreur } = await ficheDuCommercial();
+  if (!fiche) return { ok: false, erreur: erreur ?? "Accès refusé." };
+
+  const texte = String(f.get("quantite") ?? "").trim().replace(",", ".");
+  const quantite = Number(texte);
+  const { error } = await supabase.rpc("declarer_mouvement_stock", {
+    p_evenement: String(f.get("evenement_id") ?? ""),
+    p_produit: String(f.get("produit_id") ?? ""),
+    p_type: String(f.get("type") ?? ""),
+    p_quantite: Number.isFinite(quantite) ? quantite : 0,
+  });
+  if (error) return { ok: false, erreur: error.message };
+
+  revalidatePath("/stock-du-jour");
+  revalidatePath("/validation-stock");
+  return {
+    ok: true,
+    message: String(f.get("type")) === "restitution"
+      ? "Restitution enregistrée. Votre stock restant est mis à jour."
+      : "Complément déclaré. Il sera compté après validation par le gérant ou le chef d'équipe.",
+  };
+}

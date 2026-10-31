@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { BoutonValider, FormulaireChef } from "./Formulaire";
+import { BoutonValider, BoutonValiderMouvement, FormulaireChef } from "./Formulaire";
 
 export default function PageValidationStock({ searchParams }: { searchParams: Promise<{ lieu?: string }> }) {
   return (
@@ -79,6 +79,27 @@ async function ContenuValidation({ searchParams }: { searchParams: Promise<{ lie
     });
   }
 
+  // Compléments à valider et restitutions à contrôler, pour le lieu choisi.
+  let mouvementsEnAttente: { id: string; commercial: string; produit: string; quantite: number }[] = [];
+  let restitutions: { id: string; commercial: string; produit: string; quantite: number }[] = [];
+  if (lieuChoisi) {
+    const { data: mv } = await supabase.from("mouvements_stock_lieu")
+      .select("id, commercial_id, produit_id, type, quantite, statut")
+      .eq("evenement_id", lieuChoisi.id).order("declare_le", { ascending: false });
+    const { data: tousProduits } = await supabase.from("produits").select("id, nom");
+    const { data: tousCommerciaux } = await supabase.from("commerciaux").select("id, nom");
+    const nomP = new Map((tousProduits ?? []).map((p) => [p.id, p.nom]));
+    const nomC = new Map((tousCommerciaux ?? []).map((c) => [c.id, c.nom]));
+    const ligne = (m: { id: string; commercial_id: string; produit_id: string; quantite: number | string }) => ({
+      id: m.id,
+      commercial: nomC.get(m.commercial_id) ?? "Commercial",
+      produit: nomP.get(m.produit_id) ?? "Produit",
+      quantite: Number(m.quantite),
+    });
+    mouvementsEnAttente = (mv ?? []).filter((m) => m.type === "complement" && m.statut === "en_attente").map(ligne);
+    restitutions = (mv ?? []).filter((m) => m.type === "restitution").map(ligne);
+  }
+
   const libelle = { attente: "À valider", valide: "Validé, à confirmer par le commercial", confirme: "Confirmé : vente possible" };
 
   return (
@@ -110,6 +131,29 @@ async function ContenuValidation({ searchParams }: { searchParams: Promise<{ lie
                   commerciaux={affectes}
                   chefActuel={chefActuel}
                 />
+              )}
+
+              {mouvementsEnAttente.length > 0 && (
+                <section className="carte">
+                  <h2>Compléments à valider</h2>
+                  {mouvementsEnAttente.map((m) => (
+                    <div key={m.id} className="validation-bouton">
+                      <p>{m.commercial} : {m.quantite} × {m.produit}</p>
+                      <BoutonValiderMouvement mouvementId={m.id} />
+                    </div>
+                  ))}
+                </section>
+              )}
+
+              {restitutions.length > 0 && (
+                <section className="carte">
+                  <h2>Restitutions déclarées</h2>
+                  <ul>
+                    {restitutions.map((m) => (
+                      <li key={m.id}>{m.commercial} : {m.quantite} × {m.produit}</li>
+                    ))}
+                  </ul>
+                </section>
               )}
 
               {blocs.length === 0 ? (
