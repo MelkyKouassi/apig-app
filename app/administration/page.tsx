@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { FormulaireCollaborateur, FormulaireEntreprise, FormulaireLienCommercial, FormulaireParametres, FormulaireProfil } from "./Formulaires";
+import { FormulaireCollaborateur, FormulaireEntreprise, FormulaireLienCommercial, FormulaireNouveauCommercial, FormulaireParametres, FormulaireProfil } from "./Formulaires";
 import { dateHeureFr } from "@/lib/dates";
 import { Sommaire } from "@/components/Sommaire";
 
@@ -111,6 +111,10 @@ async function ContenuAdministration() {
         <p className="entete" style={{ fontSize: "0.9rem" }}>
           Reliez chaque commercial à son compte, pour qu&apos;il puisse enregistrer ses ventes et voir ses primes.
         </p>
+        <details style={{ margin: "8px 0" }}>
+          <summary><strong>+ Ajouter un commercial</strong></summary>
+          <FormulaireNouveauCommercial comptes={comptesCommerciaux} />
+        </details>
         {(commerciaux ?? []).map((c) => (
           <details key={c.id} style={{ margin: "8px 0" }}>
             <summary>

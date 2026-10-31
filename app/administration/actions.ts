@@ -168,3 +168,20 @@ export async function enregistrerProfil(_etat: EtatAdmin, f: FormData): Promise<
   revalidatePath("/administration");
   return { ok: true };
 }
+
+// Crée une fiche de commercial. Le compte de connexion est facultatif ; il peut être relié plus tard.
+// Le déclencheur de la base affecte alors le nouveau commercial à tous les lieux.
+export async function enregistrerNouveauCommercial(_etat: EtatAdmin, f: FormData): Promise<EtatAdmin> {
+  const s = await gerantConnecte();
+  if ("erreur" in s) return { ok: false, erreur: s.erreur };
+  const nom = texte(f, "nom");
+  if (!nom) return { ok: false, erreur: "Indiquez le nom et les prénoms du commercial." };
+  const userId = texte(f, "user_id");
+
+  const { error } = await s.supabase.from("commerciaux").insert({ nom, user_id: userId, actif: true });
+  if (error) return { ok: false, erreur: "Le commercial n'a pas pu être créé. Le compte choisi est peut-être déjà relié à une autre fiche." };
+
+  revalidatePath("/administration");
+  revalidatePath("/validation-stock");
+  return { ok: true };
+}

@@ -5,6 +5,7 @@ import {
   enregistrerCollaborateur,
   enregistrerEntreprise,
   enregistrerLienCommercial,
+  enregistrerNouveauCommercial,
   enregistrerParametres,
   enregistrerProfil,
   type EtatAdmin,
@@ -26,6 +27,29 @@ export function FormulaireLienCommercial({ id, userId, comptes }: { id: string; 
       <button type="submit" className="secondaire" disabled={enCours}>{enCours ? "Enregistrement..." : "Enregistrer le lien"}</button>
       {etat && !etat.ok && <p className="erreur">{etat.erreur}</p>}
       {etat?.ok && <p className="note">Lien enregistré.</p>}
+    </form>
+  );
+}
+
+// Crée une fiche de commercial, avec un compte de connexion facultatif.
+export function FormulaireNouveauCommercial({ comptes }: { comptes: { id: string; nom: string }[] }) {
+  const [etat, action, enCours] = useActionState<EtatAdmin, FormData>(enregistrerNouveauCommercial, null);
+  return (
+    <form action={action} className="formulaire">
+      <label>
+        Nom et prénoms
+        <input name="nom" required placeholder="Ex. KOFFI Aya" />
+      </label>
+      <label>
+        Compte de connexion (facultatif)
+        <select name="user_id" defaultValue="">
+          <option value="">-- Aucun compte pour l&apos;instant --</option>
+          {comptes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+        </select>
+      </label>
+      <button type="submit" className="secondaire" disabled={enCours}>{enCours ? "Création..." : "Créer ce commercial"}</button>
+      {etat && !etat.ok && <p className="erreur">{etat.erreur}</p>}
+      {etat?.ok && <p className="note">Commercial créé. Il est affecté à tous les lieux.</p>}
     </form>
   );
 }
