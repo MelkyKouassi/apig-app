@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
+import { MESSAGE_TELEPHONE, normaliserTelephone } from "@/lib/telephone";
 
 export type ResultatVente =
   | { ok: true; nombre: number; total: number }
@@ -17,7 +18,9 @@ export async function enregistrerVente(_etat: ResultatVente, formData: FormData)
   const modePaiement = String(formData.get("mode_paiement") ?? "comptant");
   const tiersChoisi = String(formData.get("tiers_id") ?? "") || null;
   const nouveauClient = String(formData.get("nouveau_client") ?? "").trim();
-  const nouveauTelephone = String(formData.get("nouveau_telephone") ?? "").trim() || null;
+  const brutTelephone = String(formData.get("nouveau_telephone") ?? "").trim();
+  const nouveauTelephone = brutTelephone === "" ? null : normaliserTelephone(brutTelephone);
+  if (brutTelephone !== "" && !nouveauTelephone) return { ok: false, erreur: MESSAGE_TELEPHONE };
   const lignesBrutes = String(formData.get("lignes") ?? "[]");
 
   if (!evenementId) return { ok: false, erreur: "Choisissez l'événement." };

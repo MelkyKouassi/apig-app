@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { choisirContact, repertoireDisponible } from "@/lib/contacts";
+import { MESSAGE_TELEPHONE, normaliserTelephone } from "@/lib/telephone";
 import {
   getAttente,
   getProfil,
@@ -332,6 +333,9 @@ export function SaisieHorsLigne() {
     if (mode === "credit" && !tiersId && !nouveauClient.trim()) {
       return setMessage("Pour une vente à crédit, choisissez le client ou saisissez son nom.");
     }
+    if (mode === "credit" && !tiersId && nouveauTelephone.trim() !== "" && !normaliserTelephone(nouveauTelephone)) {
+      return setMessage(MESSAGE_TELEPHONE);
+    }
 
     const commercial = profil.role === "commercial" ? profil.fiche_id : commercialId || null;
     if (profil.role === "commercial" && !commercial) {
@@ -346,7 +350,7 @@ export function SaisieHorsLigne() {
       mode_paiement: mode,
       tiers_id: mode === "credit" && tiersId ? tiersId : null,
       nouveau_client: mode === "credit" && !tiersId ? nouveauClient.trim() : null,
-      nouveau_telephone: mode === "credit" && !tiersId ? nouveauTelephone.trim() || null : null,
+      nouveau_telephone: mode === "credit" && !tiersId && nouveauTelephone.trim() !== "" ? normaliserTelephone(nouveauTelephone) : null,
       commercial_id: commercial,
       lignes: lignesValides.map((l) => ({
         id: nouvelId(),
