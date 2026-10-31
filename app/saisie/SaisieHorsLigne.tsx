@@ -112,7 +112,16 @@ export function SaisieHorsLigne() {
         : Promise.resolve({ data: [] as { produit_id: string; seuil: number }[] }),
     ]);
 
+    // Lieux ouverts à la vente pour ce commercial : stock validé par le gérant ou le chef, puis confirmé.
+    const vs = ficheId
+      ? await supabase.from("validation_stock").select("evenement_id, valide_le, confirme_le").eq("commercial_id", ficheId)
+      : null;
+    const lieuxOuverts = (vs?.data ?? [])
+      .filter((v) => v.valide_le && v.confirme_le)
+      .map((v) => v.evenement_id as string);
+
     const nouveau: Referentiel = {
+      lieux_ouverts: lieuxOuverts,
       evenements: (ev.data ?? []) as Referentiel["evenements"],
       produits: (pro.data ?? []) as Referentiel["produits"],
       prix: (px.data ?? []) as Referentiel["prix"],
@@ -234,6 +243,10 @@ export function SaisieHorsLigne() {
   };
   const total = lignes.reduce((s, l) => s + montantAvecRemise(l), 0);
 
+  // Un commercial ne vend que sur les lieux dont le stock est validé et confirmé. Le gérant n'est pas concerné.
+  const lieuOuvert = (id: string) =>
+    profil?.role !== "commercial" || (ref?.lieux_ouverts ?? []).includes(id);
+
   // Alertes de stock : stock de la dernière copie, moins les ventes de ce téléphone pas encore envoyées
   // et les lignes en cours. Seuls les produits dont le commercial a fixé un seuil sont surveillés.
   const alertesStock = (() => {
@@ -263,6 +276,9 @@ export function SaisieHorsLigne() {
 
     if (!profil) return setMessage("Votre session n'est pas connue sur ce téléphone. Connectez-vous une fois en ligne.");
     if (!evenementId) return setMessage("Choisissez l'événement.");
+    if (!lieuOuvert(evenementId)) {
+      return setMessage("Ce lieu n'est pas ouvert à la vente : votre stock doit être validé par le gérant ou le chef d'équipe, puis confirmé par vous.");
+    }
     const lignesValides = lignes.filter((l) => l.produit_id && Number(l.quantite) > 0);
     if (lignesValides.length === 0) return setMessage("Ajoutez au moins un produit avec une quantité.");
     const remiseInvalide = lignesValides.some((l) => {
@@ -341,9 +357,13 @@ export function SaisieHorsLigne() {
                   value={ev.id}
                   checked={evenementId === ev.id}
                   onChange={() => setEvenementId(ev.id)}
+                  disabled={!lieuOuvert(ev.id)}
                   required
                 />
-                <span>{ev.nom}</span>
+                <span>
+                  {ev.nom}
+                  {!lieuOuvert(ev.id) && <em className="note"> (stock non confirmé)</em>}
+                </span>
               </label>
             ))}
           </fieldset>

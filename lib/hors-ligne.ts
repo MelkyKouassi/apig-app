@@ -14,6 +14,8 @@ export type Referentiel = {
   // Stock restant par événement et produit, et seuils d'alerte du commercial (absents des anciennes copies).
   stocks?: { evenement_id: string; produit_id: string; stock_restant: number }[];
   seuils?: { produit_id: string; seuil: number }[];
+  // Lieux où le stock du commercial est validé ET confirmé (seul critère de vente pour un commercial).
+  lieux_ouverts?: string[];
   maj: string;
 };
 
