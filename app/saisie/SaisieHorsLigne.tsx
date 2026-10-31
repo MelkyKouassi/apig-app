@@ -120,8 +120,29 @@ export function SaisieHorsLigne() {
       .filter((v) => v.valide_le && v.confirme_le)
       .map((v) => v.evenement_id as string);
 
+    // Stock personnel : emporté (stock_depart) moins ses ventes déjà envoyées.
+    let stockPersonnel: NonNullable<Referentiel["stock_personnel"]> = [];
+    if (ficheId) {
+      const [sd, vt] = await Promise.all([
+        supabase.from("stock_depart").select("evenement_id, produit_id, quantite").eq("commercial_id", ficheId),
+        supabase.from("ventes").select("evenement_id, produit_id, quantite").eq("commercial_id", ficheId).eq("statut", "actif"),
+      ]);
+      const vendu = new Map<string, number>();
+      for (const v of vt.data ?? []) {
+        const cle = `${v.evenement_id}|${v.produit_id}`;
+        vendu.set(cle, (vendu.get(cle) ?? 0) + Number(v.quantite || 0));
+      }
+      stockPersonnel = (sd.data ?? []).map((s) => ({
+        evenement_id: s.evenement_id as string,
+        produit_id: s.produit_id as string,
+        quantite: Number(s.quantite),
+        vendu: vendu.get(`${s.evenement_id}|${s.produit_id}`) ?? 0,
+      }));
+    }
+
     const nouveau: Referentiel = {
       lieux_ouverts: lieuxOuverts,
+      stock_personnel: stockPersonnel,
       evenements: (ev.data ?? []) as Referentiel["evenements"],
       produits: (pro.data ?? []) as Referentiel["produits"],
       prix: (px.data ?? []) as Referentiel["prix"],
@@ -252,8 +273,8 @@ export function SaisieHorsLigne() {
   const alertesStock = (() => {
     if (!ref || !evenementId) return [] as { nom: string; reste: number; rupture: boolean }[];
     return (ref.seuils ?? []).flatMap((s) => {
-      const base = (ref.stocks ?? []).find((x) => x.evenement_id === evenementId && x.produit_id === s.produit_id);
-      if (!base) return [];
+      const depart = (ref.stock_personnel ?? []).find((x) => x.evenement_id === evenementId && x.produit_id === s.produit_id);
+      if (!depart) return [];
       const enAttente = attente
         .filter((v) => v.evenement_id === evenementId)
         .flatMap((v) => v.lignes)
@@ -262,7 +283,7 @@ export function SaisieHorsLigne() {
       const enCours = lignes
         .filter((l) => l.produit_id === s.produit_id)
         .reduce((t, l) => t + Number(l.quantite || 0), 0);
-      const reste = Number(base.stock_restant) - enAttente - enCours;
+      const reste = depart.quantite - depart.vendu - enAttente - enCours;
       if (reste > Number(s.seuil)) return [];
       const nom = ref.produits.find((p) => p.id === s.produit_id)?.nom ?? "Produit";
       return [{ nom, reste, rupture: reste <= 0 }];
@@ -419,7 +440,7 @@ export function SaisieHorsLigne() {
                   <strong>{a.rupture ? "Rupture" : "Stock bas"}</strong> : {a.nom}, reste {Math.max(a.reste, 0)}
                 </p>
               ))}
-              <p className="note">Stock au {ref?.maj ? new Date(ref.maj).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan" }) : "—"}.</p>
+              <p className="note">Votre stock au {ref?.maj ? new Date(ref.maj).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan" }) : "—"}.</p>
             </div>
           )}
 
