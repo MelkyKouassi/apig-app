@@ -21,6 +21,7 @@ export async function BarreNavigation() {
     groupes.push({ titre: "Ventes", liens: [
       { href: "/saisie", libelle: "Nouvelle vente" },
       { href: "/mes-ventes", libelle: "Mes ventes" },
+      { href: "/seuils", libelle: "Mes seuils" },
     ] });
   }
   if (role === "gerant" || role === "comptable") {

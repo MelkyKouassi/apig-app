@@ -98,7 +98,7 @@ export function SaisieHorsLigne() {
     await setProfil(nouveauProfil);
     setProfilState(nouveauProfil);
 
-    const [ev, pro, px, pxe, mod, com, tie] = await Promise.all([
+    const [ev, pro, px, pxe, mod, com, tie, stk, sls] = await Promise.all([
       supabase.from("evenements").select("id, nom, est_point_de_vente").order("nom"),
       supabase.from("produits").select("id, nom, prix_base").eq("actif", true).order("nom"),
       supabase.from("prix").select("produit_id, prix_unitaire, date_effet, type_prix"),
@@ -106,6 +106,10 @@ export function SaisieHorsLigne() {
       supabase.from("mode_prix").select("date_effet, mode"),
       supabase.from("commerciaux").select("id, nom").eq("actif", true).order("nom"),
       supabase.from("tiers").select("id, nom").order("nom"),
+      supabase.rpc("mes_stocks_evenements"),
+      ficheId
+        ? supabase.from("seuils_alerte").select("produit_id, seuil").eq("commercial_id", ficheId)
+        : Promise.resolve({ data: [] as { produit_id: string; seuil: number }[] }),
     ]);
 
     const nouveau: Referentiel = {
@@ -116,6 +120,8 @@ export function SaisieHorsLigne() {
       modes: (mod.data ?? []) as Referentiel["modes"],
       commerciaux: (com.data ?? []) as Referentiel["commerciaux"],
       tiers: (tie.data ?? []) as Referentiel["tiers"],
+      stocks: (stk.data ?? []) as Referentiel["stocks"],
+      seuils: ((sls.data ?? []) as Referentiel["seuils"]) ?? [],
       maj: new Date().toISOString(),
     };
     await setReferentiel(nouveau);
@@ -227,6 +233,28 @@ export function SaisieHorsLigne() {
     return Math.max(0, brut - remise);
   };
   const total = lignes.reduce((s, l) => s + montantAvecRemise(l), 0);
+
+  // Alertes de stock : stock de la dernière copie, moins les ventes de ce téléphone pas encore envoyées
+  // et les lignes en cours. Seuls les produits dont le commercial a fixé un seuil sont surveillés.
+  const alertesStock = (() => {
+    if (!ref || !evenementId) return [] as { nom: string; reste: number; rupture: boolean }[];
+    return (ref.seuils ?? []).flatMap((s) => {
+      const base = (ref.stocks ?? []).find((x) => x.evenement_id === evenementId && x.produit_id === s.produit_id);
+      if (!base) return [];
+      const enAttente = attente
+        .filter((v) => v.evenement_id === evenementId)
+        .flatMap((v) => v.lignes)
+        .filter((l) => l.produit_id === s.produit_id)
+        .reduce((t, l) => t + Number(l.quantite || 0), 0);
+      const enCours = lignes
+        .filter((l) => l.produit_id === s.produit_id)
+        .reduce((t, l) => t + Number(l.quantite || 0), 0);
+      const reste = Number(base.stock_restant) - enAttente - enCours;
+      if (reste > Number(s.seuil)) return [];
+      const nom = ref.produits.find((p) => p.id === s.produit_id)?.nom ?? "Produit";
+      return [{ nom, reste, rupture: reste <= 0 }];
+    });
+  })();
 
   async function enregistrer(e: React.FormEvent) {
     e.preventDefault();
@@ -362,6 +390,17 @@ export function SaisieHorsLigne() {
                 ))}
               </select>
             </label>
+          )}
+
+          {alertesStock.length > 0 && (
+            <div className="alerte-stock" role="status">
+              {alertesStock.map((a) => (
+                <p key={a.nom}>
+                  <strong>{a.rupture ? "Rupture" : "Stock bas"}</strong> : {a.nom}, reste {Math.max(a.reste, 0)}
+                </p>
+              ))}
+              <p className="note">Stock au {ref?.maj ? new Date(ref.maj).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan" }) : "—"}.</p>
+            </div>
           )}
 
           <div className="lignes">

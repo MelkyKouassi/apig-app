@@ -11,6 +11,9 @@ export type Referentiel = {
   modes: { date_effet: string; mode: TypePrix }[];
   commerciaux: { id: string; nom: string }[];
   tiers: { id: string; nom: string }[];
+  // Stock restant par événement et produit, et seuils d'alerte du commercial (absents des anciennes copies).
+  stocks?: { evenement_id: string; produit_id: string; stock_restant: number }[];
+  seuils?: { produit_id: string; seuil: number }[];
   maj: string;
 };
 

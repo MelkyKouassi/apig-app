@@ -216,3 +216,7 @@ body { padding-bottom: 52px; }
 .ligne-remise { grid-column: 1 / -1; display: flex; gap: 8px; }
 .ligne-remise select { flex: 1; }
 .ligne-remise input { width: 110px; }
+
+/* Alerte de stock bas ou rupture pendant la saisie */
+.alerte-stock { border: 1px solid #e0a040; background: #fff4e0; color: #5a3a00; border-radius: 10px; padding: 10px 12px; }
+.alerte-stock p { margin: 4px 0; }
