@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RechercheLoupe } from "@/components/RechercheLoupe";
 import { FormulaireReglement } from "./FormulaireReglement";
+import { FormulaireClient } from "./FormulaireClient";
 import { FormulaireReglementDepot } from "@/app/depot-vente/FormulaireReglementDepot";
 import { dateFr, dateHeureFr } from "@/lib/dates";
 import { Sommaire } from "@/components/Sommaire";
@@ -159,6 +160,10 @@ async function ContenuCreances() {
               Produits à crédit : {[...l.c.produits.entries()].map(([nom, q]) => `${nom} (${q})`).join(", ") || "—"}
             </p>
             <FormulaireReglement tiersId={l.id} reste={l.reste} />
+            <details className="modifier-client">
+              <summary>Modifier la fiche</summary>
+              <FormulaireClient tiersId={l.id} nom={client?.nom ?? ""} telephone={client?.telephone ?? null} />
+            </details>
           </section>
         );
       })}

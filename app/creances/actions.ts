@@ -44,3 +44,31 @@ export async function enregistrerReglement(_etat: EtatReglement, formData: FormD
   revalidatePath("/creances");
   return { ok: true };
 }
+
+// Modifie la fiche d'un client : nom et téléphone. Un numéro déjà attribué à un autre client est refusé.
+export async function enregistrerClient(_etat: EtatReglement, formData: FormData): Promise<EtatReglement> {
+  const tiersId = String(formData.get("tiers_id") ?? "");
+  const nom = String(formData.get("nom") ?? "").trim();
+  const telephone = String(formData.get("telephone") ?? "").trim() || null;
+
+  if (!tiersId) return { ok: false, erreur: "Client introuvable." };
+  if (!nom) return { ok: false, erreur: "Le nom ne peut pas être vide." };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, erreur: "Votre session a expiré. Reconnectez-vous." };
+
+  if (telephone) {
+    const { data: autre } = await supabase
+      .from("tiers").select("nom").eq("telephone", telephone).neq("id", tiersId).limit(1).maybeSingle();
+    if (autre) return { ok: false, erreur: `Ce numéro appartient déjà à « ${autre.nom} ». Vérifiez-le.` };
+  }
+
+  const { error } = await supabase.from("tiers").update({ nom, telephone }).eq("id", tiersId);
+  if (error) return { ok: false, erreur: "La fiche n'a pas pu être modifiée." };
+
+  revalidatePath("/creances");
+  revalidatePath("/ventes/nouvelle");
+  revalidatePath("/saisie");
+  return { ok: true };
+}
