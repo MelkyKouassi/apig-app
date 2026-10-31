@@ -220,3 +220,16 @@ body { padding-bottom: 52px; }
 /* Alerte de stock bas ou rupture pendant la saisie */
 .alerte-stock { border: 1px solid #e0a040; background: #fff4e0; color: #5a3a00; border-radius: 10px; padding: 10px 12px; }
 .alerte-stock p { margin: 4px 0; }
+
+/* Page affichée : mise en évidence dans le menu (téléphone et ordinateur) */
+.barre-accueil.actif,
+.barre-lien.actif {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.barre-titre.actif {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 export type Lien = { href: string; libelle: string };
@@ -15,6 +16,10 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [cachee, setCachee] = useState(false);
   const ouvertRef = useRef<string | null>(null);
+  const chemin = usePathname();
+
+  // La page affichée est mise en évidence dans le menu.
+  const estActif = (href: string) => chemin === href || (href !== "/" && chemin.startsWith(href + "/"));
 
   useEffect(() => {
     ouvertRef.current = ouvert;
@@ -53,13 +58,20 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
 
   return (
     <nav className={`barre-nav${cachee ? " cachee" : ""}`} aria-label="Navigation principale">
-      <Link href="/" className="barre-accueil" onClick={() => setOuvert(null)}>Accueil</Link>
+      <Link
+        href="/"
+        className={`barre-accueil${chemin === "/" ? " actif" : ""}`}
+        aria-current={chemin === "/" ? "page" : undefined}
+        onClick={() => setOuvert(null)}
+      >
+        Accueil
+      </Link>
 
       {groupes.map((g) => (
         <div key={g.titre} className={`barre-groupe${ouvert === g.titre ? " ouvert" : ""}`}>
           <button
             type="button"
-            className="barre-titre"
+            className={`barre-titre${g.liens.some((l) => estActif(l.href)) ? " actif" : ""}`}
             aria-expanded={ouvert === g.titre}
             onClick={() => setOuvert(ouvert === g.titre ? null : g.titre)}
           >
@@ -67,7 +79,13 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
           </button>
           <div className="barre-panneau">
             {g.liens.map((l) => (
-              <Link key={l.href} href={l.href} className="barre-lien" onClick={() => setOuvert(null)}>
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`barre-lien${estActif(l.href) ? " actif" : ""}`}
+                aria-current={estActif(l.href) ? "page" : undefined}
+                onClick={() => setOuvert(null)}
+              >
                 {l.libelle}
               </Link>
             ))}
@@ -76,7 +94,13 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
       ))}
 
       {directs.map((l) => (
-        <Link key={l.href} href={l.href} className="barre-accueil" onClick={() => setOuvert(null)}>
+        <Link
+          key={l.href}
+          href={l.href}
+          className={`barre-accueil${estActif(l.href) ? " actif" : ""}`}
+          aria-current={estActif(l.href) ? "page" : undefined}
+          onClick={() => setOuvert(null)}
+        >
           {l.libelle}
         </Link>
       ))}
