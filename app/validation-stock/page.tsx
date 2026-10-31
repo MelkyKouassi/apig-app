@@ -51,6 +51,12 @@ async function ContenuValidation({ searchParams }: { searchParams: Promise<{ lie
   let blocs: { commercialId: string; nom: string; lignes: { produit: string; quantite: number }[]; statut: "attente" | "valide" | "confirme" }[] = [];
   let affectes: { id: string; nom: string }[] = [];
   let chefActuel: string | null = null;
+  // Chef d'équipe : le gérant peut choisir n'importe quel commercial actif (ajouté au lieu si besoin).
+  let commerciauxActifs: { id: string; nom: string }[] = [];
+  if (role === "gerant") {
+    const { data } = await supabase.from("commerciaux").select("id, nom").eq("actif", true).order("nom");
+    commerciauxActifs = data ?? [];
+  }
 
   if (lieuChoisi) {
     const [{ data: membres }, { data: stocks }, { data: validations }, { data: produits }] = await Promise.all([
@@ -127,7 +133,7 @@ async function ContenuValidation({ searchParams }: { searchParams: Promise<{ lie
               {role === "gerant" && (
                 <FormulaireChef
                   evenementId={lieuChoisi.id}
-                  commerciaux={affectes}
+                  commerciaux={commerciauxActifs}
                   chefActuel={chefActuel}
                 />
               )}
