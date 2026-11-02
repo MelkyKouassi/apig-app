@@ -74,8 +74,13 @@ export function ChampTelephone({
             if (!c) return;
             if (c.nom) onNom?.(c.nom);
             if (c.telephones.length === 0) return;
-            if (c.telephones.length === 1) appliquer(c.telephones[0]);
-            else setChoix(c.telephones);
+            // Même numéro écrit de deux façons (01 41… et +22501 41…) : on ne garde qu'une fois.
+            const distincts = [...new Map(c.telephones.map((t) => {
+              const d = decouperTelephone(t, indicatif);
+              return [d ? d.code + d.national : t, t] as const;
+            })).values()];
+            if (distincts.length === 1) appliquer(distincts[0]);
+            else setChoix(distincts);
           }}
         >
           Prendre dans mon répertoire
