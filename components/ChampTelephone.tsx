@@ -23,12 +23,21 @@ export function ChampTelephone({
   const [indicatif, setIndicatif] = useState(indicatifInitial);
   const [numero, setNumero] = useState(numeroInitial);
   const [peutRepertoire, setPeutRepertoire] = useState(false);
+  // Numéros d'un contact du répertoire, quand il en a plusieurs : l'utilisateur choisit le sien.
+  const [choix, setChoix] = useState<string[]>([]);
   useEffect(() => { setPeutRepertoire(repertoireDisponible()); }, []);
 
   const majuscule = (i: string, n: string) => {
     setIndicatif(i);
     setNumero(n);
     onChange?.(i, n);
+  };
+
+  const appliquer = (brut: string) => {
+    setChoix([]);
+    const d = decouperTelephone(brut, indicatif);
+    if (d) majuscule(d.code, d.national);
+    else majuscule(indicatif, brut);
   };
 
   return (
@@ -64,13 +73,26 @@ export function ChampTelephone({
             const c = await choisirContact();
             if (!c) return;
             if (c.nom) onNom?.(c.nom);
-            const d = c.telephone ? decouperTelephone(c.telephone, indicatif) : null;
-            if (d) majuscule(d.code, d.national);
-            else if (c.telephone) majuscule(indicatif, c.telephone);
+            if (c.telephones.length === 0) return;
+            if (c.telephones.length === 1) appliquer(c.telephones[0]);
+            else setChoix(c.telephones);
           }}
         >
           Prendre dans mon répertoire
         </button>
+      )}
+      {choix.length > 0 && (
+        <fieldset>
+          <legend>Quel numéro utiliser ?</legend>
+          {choix.map((t) => (
+            <button key={t} type="button" className="secondaire" onClick={() => appliquer(t)}>
+              {t}
+            </button>
+          ))}
+          <button type="button" className="secondaire" onClick={() => setChoix([])}>
+            Annuler
+          </button>
+        </fieldset>
       )}
     </>
   );
