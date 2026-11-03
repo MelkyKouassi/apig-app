@@ -2,16 +2,16 @@
   --fond: #ffffff;
   --texte: #1f2933;
   --texte-doux: #52606d;
-  --accent: #1e3a5f;
+  --accent: #0048a8;
   --erreur: #b42318;
   --bordure: #cbd2d9;
   --surface: #f5f7fa;
-  --rub-accueil: #1e3a5f;
-  --rub-ventes: #1d6f42;
-  --rub-clients: #8a5a00;
-  --rub-gestion: #0e7490;
-  --rub-paie: #9d174d;
-  --rub-administration: #475569;
+  --rub-accueil: #003090;
+  --rub-ventes: #007800;
+  --rub-clients: #0060c0;
+  --rub-gestion: #00787a;
+  --rub-paie: #3a7d0a;
+  --rub-administration: #4b5563;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,16 +19,16 @@
     --fond: #0f1720;
     --texte: #e4e7eb;
     --texte-doux: #9aa5b1;
-    --accent: #7fb3e6;
+    --accent: #7fb8ff;
     --erreur: #f2a8a1;
     --bordure: #334155;
     --surface: #17212b;
-    --rub-accueil: #7fb3e6;
-    --rub-ventes: #6fcf97;
-    --rub-clients: #f2c46d;
-    --rub-gestion: #67d4e8;
-    --rub-paie: #f49ac1;
-    --rub-administration: #a9b8c9;
+    --rub-accueil: #8fb8ff;
+    --rub-ventes: #6fd47a;
+    --rub-clients: #6cb4ff;
+    --rub-gestion: #5fd0d3;
+    --rub-paie: #a4d86a;
+    --rub-administration: #aab4c2;
   }
 }
 
