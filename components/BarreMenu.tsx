@@ -9,6 +9,15 @@ export type Groupe = { titre: string; liens: Lien[] };
 
 const DELAI_MASQUAGE_MS = 5000;
 
+// Couleur propre à chaque rubrique (voir globals.css, variables --rub-*).
+const RUBRIQUE: Record<string, string> = {
+  Ventes: "ventes",
+  Clients: "clients",
+  Gestion: "gestion",
+  Paie: "paie",
+  Administration: "administration",
+};
+
 // Menu commun. Téléphone : une barre en bas, chaque rubrique s'ouvre au-dessus.
 // La barre se masque après quelques secondes sans contact et revient au moindre toucher.
 // Ordinateur : toutes les rubriques sont visibles dans un menu à gauche (voir globals.css).
@@ -60,7 +69,7 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
     <nav className={`barre-nav${cachee ? " cachee" : ""}`} aria-label="Navigation principale">
       <Link
         href="/"
-        className={`barre-accueil${chemin === "/" ? " actif" : ""}`}
+        className={`barre-accueil rub-accueil${chemin === "/" ? " actif" : ""}`}
         aria-current={chemin === "/" ? "page" : undefined}
         onClick={() => setOuvert(null)}
       >
@@ -71,7 +80,7 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
         <div key={g.titre} className={`barre-groupe${ouvert === g.titre ? " ouvert" : ""}`}>
           <button
             type="button"
-            className={`barre-titre${g.liens.some((l) => estActif(l.href)) ? " actif" : ""}`}
+            className={`barre-titre rub-${RUBRIQUE[g.titre] ?? "accueil"}${g.liens.some((l) => estActif(l.href)) ? " actif" : ""}`}
             aria-expanded={ouvert === g.titre}
             onClick={() => setOuvert(ouvert === g.titre ? null : g.titre)}
           >
@@ -97,7 +106,7 @@ export function BarreMenu({ groupes, directs }: { groupes: Groupe[]; directs: Li
         <Link
           key={l.href}
           href={l.href}
-          className={`barre-accueil${estActif(l.href) ? " actif" : ""}`}
+          className={`barre-accueil rub-accueil${estActif(l.href) ? " actif" : ""}`}
           aria-current={estActif(l.href) ? "page" : undefined}
           onClick={() => setOuvert(null)}
         >

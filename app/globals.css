@@ -6,6 +6,12 @@
   --erreur: #b42318;
   --bordure: #cbd2d9;
   --surface: #f5f7fa;
+  --rub-accueil: #1e3a5f;
+  --rub-ventes: #1d6f42;
+  --rub-clients: #8a5a00;
+  --rub-gestion: #0e7490;
+  --rub-paie: #9d174d;
+  --rub-administration: #475569;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,6 +23,12 @@
     --erreur: #f2a8a1;
     --bordure: #334155;
     --surface: #17212b;
+    --rub-accueil: #7fb3e6;
+    --rub-ventes: #6fcf97;
+    --rub-clients: #f2c46d;
+    --rub-gestion: #67d4e8;
+    --rub-paie: #f49ac1;
+    --rub-administration: #a9b8c9;
   }
 }
 
@@ -233,6 +245,20 @@ body { padding-bottom: 52px; }
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* Couleur propre à chaque rubrique de la barre de navigation */
+.rub-accueil, .rub-ventes, .rub-clients, .rub-gestion, .rub-paie, .rub-administration { color: var(--rub-accueil); }
+.barre-titre.rub-ventes, .barre-accueil.rub-ventes { color: var(--rub-ventes); }
+.barre-titre.rub-clients, .barre-accueil.rub-clients { color: var(--rub-clients); }
+.barre-titre.rub-gestion, .barre-accueil.rub-gestion { color: var(--rub-gestion); }
+.barre-titre.rub-paie, .barre-accueil.rub-paie { color: var(--rub-paie); }
+.barre-titre.rub-administration, .barre-accueil.rub-administration { color: var(--rub-administration); }
+.barre-titre.rub-ventes { box-shadow: inset 0 -3px 0 var(--rub-ventes); }
+.barre-titre.rub-clients { box-shadow: inset 0 -3px 0 var(--rub-clients); }
+.barre-titre.rub-gestion { box-shadow: inset 0 -3px 0 var(--rub-gestion); }
+.barre-titre.rub-paie { box-shadow: inset 0 -3px 0 var(--rub-paie); }
+.barre-titre.rub-administration { box-shadow: inset 0 -3px 0 var(--rub-administration); }
+.barre-accueil.rub-accueil { box-shadow: inset 0 -3px 0 var(--rub-accueil); }
 
 /* Téléphone : indicatif pays et numéro côte à côte */
 .tel-ligne {
