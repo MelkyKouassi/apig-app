@@ -253,12 +253,6 @@ body { padding-bottom: 52px; }
 .barre-titre.rub-gestion, .barre-accueil.rub-gestion { color: var(--rub-gestion); }
 .barre-titre.rub-paie, .barre-accueil.rub-paie { color: var(--rub-paie); }
 .barre-titre.rub-administration, .barre-accueil.rub-administration { color: var(--rub-administration); }
-.barre-titre.rub-ventes { box-shadow: inset 0 -3px 0 var(--rub-ventes); }
-.barre-titre.rub-clients { box-shadow: inset 0 -3px 0 var(--rub-clients); }
-.barre-titre.rub-gestion { box-shadow: inset 0 -3px 0 var(--rub-gestion); }
-.barre-titre.rub-paie { box-shadow: inset 0 -3px 0 var(--rub-paie); }
-.barre-titre.rub-administration { box-shadow: inset 0 -3px 0 var(--rub-administration); }
-.barre-accueil.rub-accueil { box-shadow: inset 0 -3px 0 var(--rub-accueil); }
 
 /* Téléphone : indicatif pays et numéro côte à côte */
 .tel-ligne {
